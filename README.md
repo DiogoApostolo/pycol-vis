@@ -13,3 +13,21 @@ The lack of dedicated image measures and the absence of supporting software, hav
 
 * Intrinsic: comprised of metrics to quantify the difficulty of individual images, based image properties such as color, entropy and edge density.
 * Overlap: focusing on class separability and complexity between classes, of a binary or multiclass image dataset.
+
+| Category  | Name                                                   | Acronym     | Range                | Reference |
+|-----------|--------------------------------------------------------|-------------|----------------------|-----------|
+| Overlap   | Cumulative Spectral Gradient                           | CSG         | 0–∞                  | \cite{image_complexity2} |
+| Overlap   | Area Under Laplacian Spectrum                          | AULS        | 0–∞                  | \cite{AugCSG} |
+| Overlap   | Cumulative Maximum Scaled Area Under Laplacian Spectrum| cmsAULS     | 0–∞                  | \cite{AugCSG} |
+| Overlap   | Class Separability                                     | m-sep       | 0–1                  | \cite{lda_measure} |
+| Overlap   | In-Class Variability                                   | m-var       | 0–1                  | \cite{lda_measure} |
+| Intrinsic | JPEG Compression Ratio                                 | JPEG        | 0–1                  | \cite{image_complexity5} |
+| Intrinsic | Fractal Compression                                    | Fractal     | 0–1                  | \cite{image_complexity5} |
+| Intrinsic | Entropy                                                | H           | 0–1                  | \cite{image_complexity1} |
+| Intrinsic | Canny Edge Density                                     | CED         | 0–1                  | \cite{image_complexity3} |
+| Intrinsic | Sobel Edge Density                                     | SED         | 0–1                  | \cite{image_complexity3} |
+| Intrinsic | Color Average                                          | Color Avg.  | [0–1, 0–1, 0–1]      | \cite{image_complexity1} |
+| Intrinsic | Unique Colors                                          | #Colors     | 1–∞                  | \cite{image_complexity3} |
+| Intrinsic | Zipf Rank                                              | Zipf        | 0–1                  | \cite{image_complexity5} |
+| Intrinsic | Haralick Features                                      | haralick    | —                    | \cite{image_complexity3} |
+| Intrinsic | FFT Features                                           | fft         | —                    | — |
