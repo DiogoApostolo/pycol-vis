@@ -24,11 +24,10 @@ from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import EarlyStopping
 
 
-from complexity import Complexity
-
+from pycol_complexity import complexity as pycol_complexity
 
 from scipy.linalg import eigh
-from embedding_models import ConvAutoencoder, EfficientNetLite0EmbeddingModel, MobileNetV3EmbeddingModel
+from embedding_models import ConvAutoencoder, EfficientNetLite0EmbeddingModel, MobileNetV3EmbeddingModel, CNNEmbeddingModel
 
 
 from sklearn.cluster import KMeans
@@ -42,13 +41,23 @@ class ImageComplexity:
         self.use_keras_dataset = use_keras_dataset
         self.images = self.load_images(folder,keep_classes,number_per_class)
         self.image_shape = self.get_average_image_shape()
-        self.num_classes = len(self.images['class'].unique())
         
+        self.num_classes = len(self.images['class'].unique())
+        self.class_labels = self.images['class'].unique()
+
         self.is_trained = False
         self.overlap_measures_dic= {}
         print("Dataset loaded")
 
+    
+
     def get_average_image_shape(self):
+        '''
+        Calculate the average image shape (height, width) across all images in the dataset.
+
+        Returns:
+        -tuple: A tuple containing the average width, average height, and number of channels (3 for RGB) for the dataset.
+        '''
         total_height = 0
         total_width = 0
         count = 0
@@ -67,7 +76,31 @@ class ImageComplexity:
         
 
 
-    def load_images(self,folder,keep_classes,number_per_class):        
+    def load_images(self,folder,keep_classes,number_per_class): 
+        '''
+        Load images from a folder and create a DataFrame with the image paths and corresponding class labels
+        
+        folder is expected to have the following structure:
+        
+        folder/
+            class1/
+                image1.jpg
+                image2.jpg
+                ...
+            class2/
+                image1.jpg
+                image2.jpg
+                ...
+            ...
+
+        Parameters:
+        - folder (str): The path to the folder containing the images, organized in subfolders by class.
+        - keep_classes (list or str): A list of class names to keep or 'all' to keep all classes.
+        - number_per_class (int): The maximum number of images to load per class. Use -1 to load all images.
+
+        Returns:
+        - pd.DataFrame: A DataFrame with two columns: 'image_path' and 'class', containing the paths to the images and their corresponding class labels.
+        '''       
         data = []
         
         if(keep_classes == 'all'):
@@ -79,157 +112,327 @@ class ImageComplexity:
             if os.path.isdir(class_path):
                 count = 0
                 for image_name in os.listdir(class_path):
+                    #if the number of images for this class is reached, stop loading more images for this class
                     if(number_per_class != -1 and count >= number_per_class):
                         break
                     image_path = os.path.join(class_path, image_name)
                     data.append([image_path, class_name])
                     count += 1
 
+
         df = pd.DataFrame(data, columns=["image_path", "class"])
         return df
         
+
+
+    
+    def load_image(self, image_path, convert_rgb=True):
+        '''
+        Load an image from the specified path.
+
+        Parameters:
+        - image_path (str): The path to the image file.
+        - convert_rgb (bool): Whether to convert the image to RGB format. 
+
+        Returns:
+        - np.ndarray: The loaded image as a NumPy array. 
+        '''
+        image = cv2.imread(image_path)
         
+        if convert_rgb:
+            return self.convert_to_rgb(image)
+        
+        return image
+    
+
+    
+    def load_image_gs(self,image_path):
+        '''
+        Load an image from the specified path in grayscale.
+
+        Parameters:
+        - image_path (str): The path to the image file.
+
+        Returns:
+        - np.ndarray: The loaded image as a NumPy array.
+        '''
+        return cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+   
+    def convert_to_rgb(self, image):
+        '''
+        Convert an image to RGB format.
+
+        Parameters:
+        - image (np.ndarray): The image to convert to RGB format.
+
+        Returns:
+        - np.ndarray: The converted image as a NumPy array.
+        '''
+         
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        return image
+    
+
+
+
     
 
     def sample_dataset(self, n_samples_per_class,sample_type='complexity'):
+        '''
+        Sample the dataset based on the specified sampling type. Use either random sampling or the complexity meausures
+        to select the most diverse/complex images from a dataset.
+
+        The method modifies the self.images DataFrame to keep only the sampled images.
+
+        Parameters:
+        - n_samples_per_class (int): The number of samples to select per class.
+        - sample_type (str): The type of sampling to perform. Options are 'random', 'complexity', or 'jpeg_compression'.
+            - 'random': Randomly sample images from each class.
+            - 'jpeg_compression': Sample images based on JPEG compression ratios.
+
+        '''
+
+
         if(sample_type=='random'):
             sampled_images = self.images.groupby('class').apply(lambda x: x.sample(n=n_samples_per_class, random_state=42)).reset_index(drop=True)
-        elif(sample_type=='complexity'):
-            #chose diverse images from the image df based on the complexity columns
-            H_mean = self.images['H_mean']
-            S_mean = self.images['S_mean']
-            V_mean = self.images['V_mean']
-
-            complexity_features = np.array(list(zip(H_mean, S_mean, V_mean)))
-
-            scaler = MinMaxScaler()
-            complexity_features_scaled = scaler.fit_transform(complexity_features)
-
-            # Use KMeans to cluster and select representative samples
-            
-            sampled_images_list = []
-            for class_name, group in self.images.groupby('class'):
-                group_features = complexity_features_scaled[group.index]
-                
-                if len(group) <= n_samples_per_class:
-                    sampled_images_list.append(group)
-                    continue
-                
-                kmeans = KMeans(n_clusters=n_samples_per_class, random_state=42)
-                kmeans.fit(group_features)
-                cluster_centers = kmeans.cluster_centers_
-                
-                closest, _ = pairwise_distances_argmin_min(cluster_centers, group_features)
-                
-                sampled_images_list.append(group.iloc[closest])
-
-            #replace self.images with sampled images
-            sampled_images = pd.concat(sampled_images_list).reset_index(drop=True)
-            self.images = sampled_images
-
+        
         elif(sample_type=='jpeg_compression'):
             sampled_images = self.images.groupby('class').apply(lambda x: x.nsmallest(n_samples_per_class, 'jpeg_compression_ratio')).reset_index(drop=True)
             self.images = sampled_images
 
 
-    def cnn_embedding_model(self,image_shape,num_classes,depth=1):
-        inputs = Input(shape=image_shape)
-        layers = []
-        
-        x_1 = Conv2D(128, (3, 3), activation='relu')(inputs)
-        x_1 = MaxPooling2D((2, 2), name='feature_map')(x_1)
-
-        layers.append(x_1)
-        x_conv = x_1
-        if(depth>=2):
-            x_2 = Conv2D(64, (3, 3), activation='relu')(x_1)
-            x_2 = MaxPooling2D((2, 2))(x_2)
-            layers.append(x_2)
-            x_conv = x_2
-
-        if(depth>=3):
-            x_3 = Conv2D(32, (3, 3), activation='relu')(x_2)
-            x_3 = MaxPooling2D((2, 2))(x_3)
-            layers.append(x_3)
-            x_conv = x_3
-        if(depth>=4):
-            x_4 = Conv2D(16, (3, 3), activation='relu')(x_3)
-            x_4 = MaxPooling2D((2, 2))(x_4)
-            layers.append(x_4)
-            x_conv = x_4
-
-        
-        x_flatten = Flatten(name='flatten_layer')(x_conv)
-        x_dense_1 = Dense(64, activation = 'relu')(x_flatten)
-        x_dropout = Dropout(0.5)(x_dense_1)
-        x_dense_2 = Dense(num_classes, activation = 'softmax')(x_dropout)
-
-        layers.append(x_flatten)
-        layers.append(x_dense_1)
-        layers.append(x_dropout)
-
-
-        self.model_to_train = Model(inputs=inputs, outputs=x_dense_2)
-        self.model_all_layers = [Model(inputs=inputs, outputs=x) for x in layers]
-        self.model = Model(inputs=inputs, outputs=x_conv)
-        self.model_to_train.compile(optimizer='adam', loss='categorical_crossentropy')
-        
+    def select_channel(self, name, channel='all'):
         
 
 
+        if(channel=='all'):
+            original_image = self.load_image(name,convert_rgb=False)
+        elif(channel=='R'):
+            original_image = self.load_image(name)[:,:,0]
+        elif(channel=='G'):
+            original_image = self.load_image(name)[:,:,1]
+        elif(channel=='B'):
+            original_image = self.load_image(name)[:,:,2]
+        elif(channel=='H'):
+            original_image = self.convert_to_hsv(self.load_image(name))[:,:,0]
+        elif(channel=='S'):
+            original_image = self.convert_to_hsv(self.load_image(name))[:,:,1]
+        elif(channel=='V'):
+            original_image = self.convert_to_hsv(self.load_image(name))[:,:,2]
+        else:
+            raise ValueError("Channel must be one of 'all', 'R', 'G', 'B', 'H', 'S', or 'V'.")
+        return original_image
 
-    def train_model(self,network_type="CNN",epochs=20):
-        train_datagen = ImageDataGenerator(rescale=1.0/255.0)
+
+
+    def cnn_setup(self, depth=2, epochs=10, is_train=True):
+        '''
+        Setup the CNN model for feature embedding and train it (optionally).
+
+        Parameters:
+        - depth: Number of convolutional layers in the CNN.
+        - epochs: Number of training epochs.
+        - is_train: Whether to train the model.
+        '''
+
+        cnn_model = CNNEmbeddingModel(image_shape=self.image_shape, num_classes=self.num_classes, depth=depth)
         
-        if(network_type=="CNN"):
-            train_generator = train_datagen.flow_from_dataframe(
-                dataframe=self.images,
-                x_col="image_path",
-                y_col="class",
-                target_size=self.image_shape[:2],
-                batch_size=32,
-                class_mode='categorical',
-                shuffle=True
-            )
+        if is_train:
+            cnn_model.train_model(self.images,epochs=epochs)
+        
+        self.model = cnn_model
+
+
+    def quantized_color_set(self, image, bits_per_channel):
+
+        '''
+        Auxiliary function to quantize the colors of an image
+
+        Parameters:
+        - image (np.ndarray): The input image as a NumPy array.
+        - bits_per_channel (int): The number of bits to use for quantization per color channel.
+        '''
+
+        shift = 8 - bits_per_channel
+        img_quantized = np.right_shift(image, shift).astype(np.uint16)
+
+    
+        color_indices = (
+            (img_quantized[:, :, 0] << (2 * bits_per_channel)) +
+            (img_quantized[:, :, 1] << bits_per_channel) +
+            img_quantized[:, :, 2]
+        )
+
+        
+        return color_indices
+    
+    
+    
+    def edge_mask(self,img):
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        edges = cv2.Canny(gray, 100, 200)
+
+        kernel = np.ones((3,3), np.uint8)
+        mask = cv2.dilate(edges, kernel, iterations=1)
+
+        mask = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY)[1]
+        return mask
+
+    #-------------------------------
+
+
+
+    def embed_images(self, emb_type, layer_index=-1):
+        '''
+        Extract feature embeddings for all images in the dataset.
+
+        Parameters:
+        - emb_type (str): The type of embeddings to extract. Options are 'raw', 'CNN', 'efficient_net', 'mobile_net', or 'current'.
+        - layer_index (int): The index of the layer from which to extract the embeddings. Use -1 for the last feature layer.
+        
+        Returns:
+        - np.ndarray: A NumPy array containing the extracted feature embeddings for all images in the dataset.
+        '''
+
+
+        if(emb_type in ['CNN'] and not hasattr(self, 'model')):
             
-            self.model_to_train.fit(train_generator, epochs=epochs)
-            self.is_trained = True
-            return
-        if(network_type=="CAE"):
-            #load images for CAE
-            for name in self.images['image_path']:
-                image = self.load_image(name, convert_rgb=True)
-                image = cv2.resize(image, (self.image_shape[1], self.image_shape[0]))
-                image = image.astype('float32') / 255.0
-                if 'x_data' not in locals():
-                    x_data = np.expand_dims(image, axis=0)
-                else:
-                    x_data = np.vstack((x_data, np.expand_dims(image, axis=0)))
+            print("Model not loaded. Please load a model before extracting CNN embeddings.")
+            return None 
 
-
-            self.model_to_train.fit(x_data, x_data, epochs=epochs,batch_size=32)
-            self.is_trained = True
-            return
+        if(emb_type == 'current'):
+            if(self.feature_embeddings is None):
+                print("No current embeddings found.")
+                return None
+            return self.feature_embeddings
         
+        #flatten the images (not recomended for large image sizes)
+        if(emb_type == 'raw'):
+            feature_embeddings = []
 
+            for image_path in self.images['image_path']:
+                img = self.load_image(image_path)
+                flattened_img = img.flatten()
+                feature_embeddings.append(flattened_img)
 
-    def cae_embedding_model(self,image_shape):
-        self.model_to_train = ConvAutoencoder(input_shape=image_shape, latent_dim=64)
-        self.model_to_train.compile(optimizer='adam', loss='mse')
-        self.model = self.model_to_train.encoder  
-
-     
-
-    def define_feature_embedding_model(self,network_type="CNN",depth=1):
-        if(network_type=="CNN"):
-            self.cnn_embedding_model(self.image_shape,self.num_classes,depth=depth)
-        if(network_type=="CAE"):
-            self.cae_embedding_model(self.image_shape)
+            feature_embeddings = np.array(feature_embeddings)
+            
+        elif(emb_type == 'CNN'):
+            print("Extracting CNN embeddings...")
+            self.feature_embeddings = self.model.get_feature_embeddings_all(self.images,layer_index=layer_index)
+            print("CNN embeddings extracted.")
         
+        # -------- PRE TRAINED MODELS --------
+
+        elif(emb_type == 'efficient_net'):
+
+            print("Extracting EfficientNet-Lite0 embeddings...")
+            model = EfficientNetLite0EmbeddingModel()
+            feature_embeddings = []
+            for image_path in self.images['image_path']:
+
+                img = self.load_image(image_path)
+                embedding = model(img)
+                feature_embeddings.append(np.array(embedding))
+
+            self.feature_embeddings = feature_embeddings
+            print("EfficientNet-Lite0 embeddings extracted.")
+        
+        elif(emb_type == 'mobile_net'):
+
+            print("Extracting MobileNetV3 embeddings...")
+            model = MobileNetV3EmbeddingModel()
+            feature_embeddings = []
+
+            for image_path in self.images['image_path']:
+
+                img = self.load_image(image_path)
+                embedding = model(img)
+                feature_embeddings.append(np.array(embedding))
+
+            self.feature_embeddings = feature_embeddings
+            print("MobileNetV3 embeddings extracted.")
+            
+        return self.feature_embeddings
+    
+
+    def dim_reduction(self,emb,method='pca',n_compoments=50,custom_method=None): 
+        '''
+        Reduce the dimensionality of the feature embeddings using the specified method.
+
+        Parameters:
+        - emb (np.ndarray): The feature embeddings to reduce.
+        - method (str): The dimensionality reduction method to use. Options are 'pca', 'tsne', or 'custom'.
+        - n_components (int): The number of components to keep.
+        - custom_method (callable): A custom dimensionality reduction method. method parameter must be set to 'custom' to use this. 
+        Returns:
+        - np.ndarray: A NumPy array containing the reduced feature embeddings.
+        '''
+        
+        
+        if(method=='pca'):
+            reduction_method = PCA(n_components=n_compoments)
+            reduced_embs = reduction_method.fit_transform(emb)
+            self.reduction_method = reduction_method
+        
+        elif(method=='tsne'):
+            reduction_method = TSNE(n_components=n_compoments, random_state=42)
+            reduced_embs = reduction_method.fit_transform(emb)
+            self.reduction_method = reduction_method
+
+        elif(method=='custom'):
+            reduced_embs = custom_method(emb)
+        
+        
+        return reduced_embs
+
+
+    def normalize_embs(self,embs):
+        '''
+        Normalize the feature embeddings to the range [0, 1].
+
+        Parameters:
+        - embs (np.ndarray): The feature embeddings to normalize.
+
+        Returns:
+        - np.ndarray: A NumPy array containing the normalized feature embeddings.
+
+        '''
+
+        #normalize
+        embs_min = np.array(embs.min(axis=0))
+        embs_max = np.array(embs.max(axis=0))
+
+        #check if max equals min to avoid division by zero
+        zro_mask = (embs_max - embs_min) == 0
+        embs_max[zro_mask] = 1
+        embs_min[zro_mask] = 0
+
+        embs = (embs - embs_min) / (embs_max - embs_min)
+
+        return embs
+
+
+
+
+    #-------------------------------
+
 
 
     def sobel_edges(self,channel, direction = 'all'):
+        '''
+        Calculate the Sobel edges for a given image channel and direction.
+
+        Parameters:
+        - channel (np.ndarray): The image channel for which to calculate the Sobel edges.
+        - direction (str): The direction of edges to calculate. Options are 'x' for horizontal edges, 'y' for vertical edges, and 'all' for both.
         
+        Returns:
+        - np.ndarray: A NumPy array containing the calculated Sobel edges for the specified channel and direction.
+
+        '''
         if(direction == 'x'):
             # Horizontal edges (dx=1, dy=0)
             sobel_x = cv2.Sobel(channel, cv2.CV_64F, 1, 0, ksize=3)
@@ -255,58 +458,154 @@ class ImageComplexity:
     
         return edge_image
     
-    '''
-    Convert an image to HSV color space.
-    '''
+    def edge_density_canny(self, low_threshold=0.11, high_threshold=0.27):
+        '''
+        Calculate the edge density of an image using the Canny edge detection algorithm.
+
+        Adds the calculated edge density values to the self.images DataFrame.
+
+        Parameters:
+        - low_threshold (float): The lower threshold required for the Canny Edge filter. Should be a value between 0 and 1.
+        -high_threshold (float): The upper threshold required for the Canny Edge filter. Should be a value between 0 and 1.
+        
+        '''
+        density_array = []
+        for name in self.images['image_path']:
+
+            image = self.load_image(name,convert_rgb=False)
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            
+            # Convert normalized thresholds to 8-bit scale
+            low = int(low_threshold * 255)
+            high = int(high_threshold * 255)
+            
+            edges = cv2.Canny(gray, low, high)
+            
+            density = np.sum(edges > 0) / edges.size
+            density_array.append(density)
+
+        self.images['edge_density_canny'] = density_array
+
+
+    def edge_density_sobel(self, threshold=0.2):
+        '''
+        Calculate the edge density of an image using the Sobel edge detection algorithm.
+
+        Adds the calculated edge density values to the self.images DataFrame.
+
+        Parameters:
+        - threshold (float): The threshold for edge detection. Should be a value between 0 and 1.
+        
+        '''
+
+        density_array = []
+
+        for name in self.images['image_path']:
+
+            image = self.load_image(name, convert_rgb=False)
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+            sobel = self.sobel_edges(gray, direction='all')
+
+            # Normalize to 0–1
+            sobel_normalized = sobel / 255.0
+
+            edges = sobel_normalized > threshold
+            density = np.sum(edges) / edges.size
+            density_array.append(density)
+
+        self.images['edge_density_sobel'] = density_array
+
     def convert_to_hsv(self,image):
+        '''
+        Convert an image to the HSV color space.
+
+        Parameters:
+        - image (np.ndarray): The image to convert to the HSV color space.
+        Returns:
+        - np.ndarray: The converted image in HSV color space as a NumPy array.
+        '''
         return cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
     
     
-    '''
-    Calculate the average color of an image.
-    '''
+    
     def calculate_color_average(self,image):
+        '''
+        Calculate the average color of an image.
+
+        Parameters:
+        - image (np.ndarray): The image for which to calculate the average color.
+
+        Returns:
+        -list: A list containing the average values for each channel.
+        '''
         avg_color_per_row = np.average(image, axis=0)
         avg_color = np.average(avg_color_per_row, axis=0)
         return [avg_color[0], avg_color[1], avg_color[2]]
     
-    '''
-    Calculate the average HSV values for each image
-    '''
-    def calculate_hsv_average(self,image):
-        avg_hsv_per_row = np.average(image, axis=0)
-        avg_hsv = np.average(avg_hsv_per_row, axis=0)
-        return [avg_hsv[0], avg_hsv[1], avg_hsv[2]]
+
+    def calculate_color_std(self,image):
+        '''
+        Calculate the standard deviation of the color channels of an image.
+
+        Parameters:
+        - image (np.ndarray): The image for which to calculate the standard deviation.
+
+        Returns:
+        - list: A list containing the standard deviation values for each channel.
+        '''
+        std_color_per_row = np.std(image, axis=0)
+        std_color = np.std(std_color_per_row, axis=0)
+        return [std_color[0], std_color[1], std_color[2]]
     
-    '''
-    '''
-    def get_hsv(self):
-        H_mean, S_mean, V_mean = [], [], []
+    
+    def hsv_std(self):
+
+        '''
+        Calculate the standard deviation of the HSV color channels for each image and store them in the self.images DataFrame.
+        '''
+
+        H_std, S_std, V_std = [], [], []
 
         for name in self.images['image_path']:
-            h, s, v = self.calculate_hsv_average(self.convert_to_hsv((self.load_image(name))))
-            
+            h, s, v = self.calculate_color_std(self.convert_to_hsv((self.load_image(name))))
+
+            H_std.append(h)
+            S_std.append(s)
+            V_std.append(v)
+
+
+        self.images['H_std'] = H_std
+        self.images['S_std'] = S_std
+        self.images['V_std'] = V_std
+
+    def hsv_mean(self):
+        '''
+        Calculate the average of the HSV color channels for each image and store them in the self.images DataFrame.
+        '''
+
+
+        H_mean, S_mean, V_mean = [], [], []
+        for name in self.images['image_path']:
+            h, s, v = self.calculate_color_average(self.convert_to_hsv((self.load_image(name))))
+
             H_mean.append(h)
             S_mean.append(s)
             V_mean.append(v)
-        
+
+            
+
         self.images['H_mean'] = H_mean
         self.images['S_mean'] = S_mean 
         self.images['V_mean'] = V_mean
 
-    def get_hsv_per_class(self):
-        #Verify if HSV values are already calculated
-        if 'H_mean' not in self.images.columns or 'S_mean' not in self.images.columns or 'V_mean' not in self.images.columns:
-            self.get_hsv()
-        
-        return self.images.groupby('class')[['H_mean', 'S_mean', 'V_mean']].mean().reset_index()
+      
     
     
-    '''
-    Calculate the average RGB values for each image and store them in the DataFrame.
-    '''
-    def get_rgb(self):
-        
+    def rgb_mean(self):
+        '''
+        Calculate the average RGB values for each image and store them in the self.images DataFrame.
+        '''
         R_means, G_means, B_means = [], [], []
         for name in self.images['image_path']:
             r, g, b = self.calculate_color_average((self.load_image(name)))
@@ -319,131 +618,76 @@ class ImageComplexity:
         self.images['G_mean'] = G_means
         self.images['B_mean'] = B_means
 
-    def get_rgb_per_class(self):
-        #Verify if RGB values are already calculated
-        if 'R_mean' not in self.images.columns or 'G_mean' not in self.images.columns or 'B_mean' not in self.images.columns:
-            self.get_rgb()
-        
-        return self.images.groupby('class')[['R_mean', 'G_mean', 'B_mean']].mean().reset_index()
+
+    def rgb_std(self):
+        '''
+        Calculate the standard deviation of the RGB color channels for each image and store them in the self.images DataFrame.
+        '''
+        R_std, G_std, B_std = [], [], []
+        for name in self.images['image_path']:
+            r, g, b = self.calculate_color_std((self.load_image(name)))
+            
+            R_std.append(r)
+            G_std.append(g)
+            B_std.append(b)
+            
+        self.images['R_std'] = R_std
+        self.images['G_std'] = G_std
+        self.images['B_std'] = B_std
 
 
-    def get_feature_embeddings_all(self,layer_index=-1,batch_size=32):
-
-        
 
 
+    def entropy_measure(self):
+        '''
+        Calculate the entropy of each image and store the values in the self.images DataFrame under the column 'entropy'.
+        '''
 
-
-        embeddings = []
-        num_images = len(self.images)
-
-        for start_idx in range(0, num_images, batch_size):
-            end_idx = min(start_idx + batch_size, num_images)
-            batch_images = []
-
-            for i in range(start_idx, end_idx):
-                image = self.load_image(self.images['image_path'].iloc[i])
-                image = cv2.resize(image, (self.model.input_shape[2], self.model.input_shape[1]))
-                batch_images.append(image)
-
-            batch_images = np.array(batch_images)
-
-            if(layer_index==-1):
-                features = self.model.predict(batch_images)
-            else:
-                features = self.model_all_layers[layer_index].predict(batch_images)
-
-            embeddings.extend(features)
-
-    
-        self.feature_embeddings = np.array(embeddings)
-        return np.array(embeddings)
-
-    def get_feature_embeddings(self,image,layer_index=-1):
-        image = cv2.resize(image, (self.model.input_shape[2], self.model.input_shape[1]))
-        if(layer_index==-1):
-            features = self.model.predict(np.expand_dims(image, axis=0))
-        else:
-            features = self.model_all_layers[layer_index].predict(np.expand_dims(image, axis=0))
-        return features[0]
-
-    '''
-    Load an image from the specified path.
-    '''
-    def load_image(self, image_path, convert_rgb=True):
-        image = cv2.imread(image_path)
-        
-        if convert_rgb:
-            return self.convert_to_rgb(image)
-        
-        return image
-    '''
-    Load an image from the specified path in grayscale.
-    '''
-    def load_image_gs(self,image_path):
-        return cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-
-    '''
-    Convert an image to RGB format if it is not already.
-    '''
-    def convert_to_rgb(self, image):
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        return image
-    
-
-    def select_channel(self, name, channel='all'):
-        if(channel=='all'):
-            original_image = self.load_image(name,convert_rgb=False)
-        elif(channel=='R'):
-            original_image = self.load_image(name)[:,:,0]
-        elif(channel=='G'):
-            original_image = self.load_image(name)[:,:,1]
-        elif(channel=='B'):
-            original_image = self.load_image(name)[:,:,2]
-        elif(channel=='H'):
-            original_image = self.convert_to_hsv(self.load_image(name))[:,:,0]
-        elif(channel=='S'):
-            original_image = self.convert_to_hsv(self.load_image(name))[:,:,1]
-        elif(channel=='V'):
-            original_image = self.convert_to_hsv(self.load_image(name))[:,:,2]
-        else:
-            raise ValueError("Channel must be one of 'all', 'R', 'G', 'B', 'H', 'S', or 'V'.")
-        return original_image
-
-
-    def calculate_entropy(self):
         entropy_array = []
         for image in self.images['image_path']:
             image = self.load_image_gs(image)
             histogram, _ = np.histogram(image.flatten(), bins=256, range=(0, 256))
-            histogram = histogram / histogram.sum()  # Normalize to get probabilities
-            histogram = histogram[histogram > 0]  # Remove zero entries
+            
+            # Get proabilities 
+            histogram = histogram / histogram.sum()  
+
+            # Remove zero entries to avoid log(0)
+            histogram = histogram[histogram > 0]  
+            
             entropy_value = -np.sum(histogram * np.log2(histogram))
             entropy_array.append(entropy_value)
         
         self.images['entropy'] = entropy_array
 
-    def calculate_entropy_per_class(self):
-        #Verify if entropy values are already calculated
-        if 'entropy' not in self.images.columns:
-            self.calculate_entropy()
-        
-        return self.images.groupby('class')[['entropy']].mean().reset_index()
+    
 
-    def calculate_energy(self):
-        energy_array = []
+    def energy_measure(self):
+        '''
+        Calculate the energy of each image and store the values in the self.images DataFrame under the column 'energy'.
+        '''
+        
+        energy_array_spacial = []
+
         for image in self.images['image_path']:
             image = self.load_image_gs(image)
-            f = np.fft.fft2(image)
-            fshift = np.fft.fftshift(f)
-            magnitude_spectrum = np.abs(fshift)
-            energy = np.sum(magnitude_spectrum ** 2) / (image.shape[0] * image.shape[1])
-            energy_array.append(energy)
-        
-        self.images['energy'] = energy_array
+            energy_spacial = np.sum(image.astype(np.float64) ** 2) / (image.shape[0] * image.shape[1])
+            energy_array_spacial.append(energy_spacial)
 
-    def n_regions_count(self, scale_factor=0.02, color_factor=0.1, area_factor=0.001):
-        
+        self.images['energy'] = energy_array_spacial
+    
+
+    def n_regions(self, scale_factor=0.02, color_factor=0.1, area_factor=0.001):
+        '''
+        Calculate the number of regions in each image and store the values in the self.images DataFrame under the column 'n_regions'.
+        This method uses mean shift segmentation to identify regions in the image. 
+
+        Parameters:
+        - scale_factor (float): A value to determine the spatial radius for mean shift segmentation based on the image dimensions.
+        - color_factor (float): A value to determine the color radius for mean shift segmentation based on the image dimensions.
+        - area_factor (float):  A value to determine the minimum region size for mean shift segmentation based on the image dimensions.
+        '''
+
+
         n_regions_array = []
         for img_path in self.images['image_path']:
             image = self.load_image(img_path, convert_rgb=False)    
@@ -452,10 +696,10 @@ class ImageComplexity:
             h, w = image.shape[:2]
             total_pixels = h * w
 
-            # --- Dynamic parameters ---
-            spatial_radius = int(min(h, w) * scale_factor)       # proportional to smallest image dimension
-            color_radius = int(255 * color_factor)               # proportional to color range
-            min_region_size = int(total_pixels * area_factor)    # proportional to total area
+            
+            spatial_radius = int(min(h, w) * scale_factor)      
+            color_radius = int(255 * color_factor)               
+            min_region_size = int(total_pixels * area_factor)    
             
             shifted = cv2.pyrMeanShiftFiltering(image, spatial_radius, color_radius)
 
@@ -465,32 +709,41 @@ class ImageComplexity:
 
             unique_labels, counts = np.unique(labels, return_counts=True)
 
-            region_sizes = counts[1:]  # skip background
+            # Exclude the background label (0) and count valid regions based on size
+            region_sizes = counts[1:]  
             valid_regions = region_sizes[region_sizes >= min_region_size]
 
             num_valid = len(valid_regions)
             n_regions_array.append(num_valid)
 
-        self.images['mean_shift_regions'] = n_regions_array 
+        self.images['n_regions'] = n_regions_array 
 
 
-    def frequency_factor(self):
-        #FrequencyFactor, it is the ratio between the frequency corresponding to the 99% of
-        # the image energy and the Nyquist frequency
+   
 
-        if 'energy' not in self.images.columns:
-            self.calculate_energy()
+    def jpeg_compression_ratio(self, quality=90, channel='all', is_edge_processing=False, edge_method='sobel', direction='all'):
+        
+        '''
+        Calculate the JPEG compression ratio for each image and store the values in the self.images DataFrame under the column 'jpeg_compression_ratio'.
+        Furthermore, calculate the root mean square error (RMSE) between the original and compressed images and store the values in the self.images DataFrame under the column 'jpeg_rmse'.
 
-        nyquist_frequency = 0.5  # Normalized Nyquist frequency
-        frequency_factors = self.images['energy'] / nyquist_frequency
-        self.images['frequency_factor'] = frequency_factors
+        User may choose to first apply edge processing to the image before compression, which may affect the compression ratio. 
+        If edge processing is applied, the user can specify the method and direction for edge detection.
 
-    def calculate_jpeg_compression_ratio(self, quality=90, channel='all', is_edge_processing=False, edge_method='sobel', direction='all'):
+        Parameters:
+        - quality (int): The quality level for JPEG compression (0 to 100).
+        - channel (str): The image channel to use for compression. Options are 'all', 'R', 'G', 'B', 'H', 'S', or 'V'. If 'all' is selected, the original RGB image will be used for compression. If a specific channel is selected, only that channel will be used for compression. If H, S or V are chosen, image is first converted to HSV format.
+        - is_edge_processing (bool): Whether to apply edge processing to the image before compression.
+        - edge_method (str): The method to use for edge processing if is_edge_processing is True. Options are 'sobel'. Only 'sobel' is currently implemented.
+        - direction (str): The direction of edges to calculate for edge processing. Options are 'x' for horizontal edges, 'y' for vertical edges, and 'all' for both. Only used if is_edge_processing is True.
+
+        '''
+        
         ratios = []
         rmses = []
-        count = 0
+
+
         for name in self.images['image_path']:
-            
             original_image = self.select_channel(name, channel=channel)
             
 
@@ -498,7 +751,7 @@ class ImageComplexity:
                 
                 original_image = self.edge_processing(original_image, method=edge_method, direction= direction)
                 
-
+            #convert
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
             result, encoded_img = cv2.imencode('.jpg', original_image, encode_param)
             
@@ -507,58 +760,58 @@ class ImageComplexity:
             else:   
                 jpeg_image = cv2.imdecode(encoded_img, cv2.IMREAD_GRAYSCALE)
 
-
+            #save original and compressed images temporarily to calculate sizes for compression ratio
             cv2.imwrite("./temp.png", original_image)
             cv2.imwrite("./temp.jpg", original_image, [cv2.IMWRITE_JPEG_QUALITY, quality])
             
             original_size = os.path.getsize("./temp.png")
             jpeg_size = os.path.getsize("./temp.jpg")
+
+            #compression ratio
             compression_ratio =  jpeg_size / original_size
 
+            ratios.append(compression_ratio)
+
+            #root mean square error between original and compressed image
             diff = (original_image.astype(np.float32) - jpeg_image.astype(np.float32)) ** 2
             mse = np.mean(diff)
             rmse = np.sqrt(mse)
-            
-            
-            
-            
-            
-            
-            
-            ratios.append(compression_ratio)
+
             rmses.append(rmse)
 
-            count = count + 1
-            if(count%500==0):
-                print(count)
+            
            
         self.images['jpeg_compression_ratio'] = ratios
         self.images['jpeg_rmse'] = rmses
     
-    def jpeg_compression_ratio_per_class(self, quality=90, channel='all', is_edge_processing=False, edge_method='sobel', direction='all'):
-        #Verify if compression ratios are already calculated
-        if 'jpeg_compression_ratio' not in self.images.columns or 'jpeg_rmse' not in self.images.columns:
-            self.jpeg_compression_ratio(quality=quality, channel=channel, is_edge_processing=is_edge_processing, edge_method=edge_method, direction=direction)
-        
-        return self.images.groupby('class')[['jpeg_compression_ratio', 'jpeg_rmse']].mean().reset_index()
-
 
     def zipf_rank(self, channel='all'):
+        '''
+        Calculate the Zipf's law slope and R-value for the pixel value distribution of each image and store the values 
+        in the self.images DataFrame under the columns 'zipf_slope' and 'zipf_r_value', respectively.
+        
+        Function is based on Zipf-like statistics and Zipf's Law, which claims that in many natural 
+        processes the frequency of something is inversely proportional to its rank. 
+
+        Parameters:
+        - channel (str): The image channel to use for the calculation. Options are 'all', 'R', 'G', 'B', 'H', 'S', or 'V'. If 'all' is selected, the original RGB image will be used for the calculation. If a specific channel is selected, only that channel will be used for the calculation. If H, S or V are chosen, image is first converted to HSV format.
+        '''
+
         slopes = []
         r_values = []
         for name in self.images['image_path']:
             image = self.select_channel(name, channel=channel)
             values, counts = np.unique(image, return_counts=True)
 
-            # Sort counts in descending order (most frequent = rank 1)
+           
             counts_sorted = np.sort(counts)[::-1]
             ranks = np.arange(1, len(counts_sorted) + 1)
 
-            # Convert to log scale
+          
             log_ranks = np.log10(ranks)
             log_counts = np.log10(counts_sorted)
 
-            # Fit a linear regression: log(f) = a + b*log(r)
+            
             slope, intercept, r_value, p_value, std_err = stats.linregress(log_ranks, log_counts)
             
             if(r_value == 0.0):
@@ -570,19 +823,32 @@ class ImageComplexity:
         self.images['zipf_r_value'] = r_values
 
 
-    def zipf_difference(self, channel='all'):   
+    def zipf_difference(self, channel='all'):  
+        '''
+        Calculate the Zipf's difference slope and R-value for the pixel value distribution of each image and store the values 
+        in the self.images DataFrame under the columns 'zipf_slope' and 'zipf_r_value', respectively.
+        
+        Unlike the zipf_rank method, which calculates the slope and R-value based on the frequency of pixel values,
+        this method calculates the slope and R-value based on the frequency of pixel value differences between neighboring pixels.
+
+        Function is based on Zipf-like statistics and Zipf's Law, which claims that in many natural 
+        processes the frequency of something is inversely proportional to its rank. 
+
+        Parameters:
+        - channel (str): The image channel to use for the calculation. Options are 'all', 'R', 'G', 'B', 'H', 'S', or 'V'. If 'all' is selected, the original RGB image will be used for the calculation. If a specific channel is selected, only that channel will be used for the calculation. If H, S or V are chosen, image is first converted to HSV format.
+        ''' 
         slopes = []
         r_values = []
         for name in self.images['image_path']:
             image = self.select_channel(name, channel=channel)
 
             shifts = [(-1, -1), (-1, 0), (-1, 1),
-                ( 0, -1),          ( 0, 1),
-                ( 1, -1), ( 1, 0), ( 1, 1)]
+                      ( 0, -1),          ( 0, 1),
+                      ( 1, -1), ( 1, 0), ( 1, 1)
+                      ]
         
             differences = []
 
-            # Compute absolute differences with all neighbors
             for dx, dy in shifts:
                 shifted = np.roll(image, shift=(dx, dy), axis=(0, 1))
                 diff = np.abs(image - shifted)
@@ -590,7 +856,6 @@ class ImageComplexity:
 
             diffs = np.concatenate([d.flatten() for d in differences])
 
-            # Count occurrences of difference magnitudes (1–255)
             values, counts = np.unique(diffs, return_counts=True)
             valid_mask = (values > 0) & (values <= 255)
             
@@ -599,16 +864,14 @@ class ImageComplexity:
             values = values[valid_mask]
             counts = counts[valid_mask]
 
-            if len(values) < 2:
+            if(len(values) < 2):
                 slopes.append(0.0)
                 r_values.append(0.0)
                 continue
 
-            # Log transform
             log_values = np.log10(values)
             log_counts = np.log10(counts)
 
-            # Fit linear regression
             slope, intercept, r_value, p_value, std_err = stats.linregress(log_values, log_counts)
             
             if(r_value == 0.0):
@@ -623,184 +886,52 @@ class ImageComplexity:
         self.images['zipf_diff_r_value'] = r_values
 
 
-    def edge_density_canny(self, low_threshold=0.11, high_threshold=0.27):
-        density_array = []
+    def count_unique_colors(self,bits_per_channel,use_mask):
+        '''
+        Count the number of unique colors in each image and store the values in the self.images DataFrame under the column 'unique_colors'.
+        The method quantizes the colors of the image to reduce the number of unique colors, making the computation more efficient and counting only the most relevant colors.
+        
+        Parameters:
+        - bits_per_channel (int): The number of bits to use for quantization per color channel. 
+        - use_mask (bool): Whether to apply an edge mask to the image before counting unique colors. Can be useful to count colors in edge regions and avoid counting colors in flat background areas. 
+        
+        '''
+        
+        
+        unique_colors_array = []
+        colors_count_array = []
+        
         for name in self.images['image_path']:
-            image = self.load_image(name,convert_rgb=False)
+            image = self.load_image(name)
+
+        
+                
             
+            colors = self.quantized_color_set(image,bits_per_channel)
 
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            
-            # Convert normalized thresholds to 8-bit scale
-            low = int(low_threshold * 255)
-            high = int(high_threshold * 255)
-            
-            edges = cv2.Canny(gray, low, high)
-            
-            density = np.sum(edges > 0) / edges.size
-            density_array.append(density)
+            if(use_mask):
+                mask = self.edge_mask(image)
+                colors = colors[mask>0]
 
-        self.images['edge_density'] = density_array
+            unique_colors, counts = np.unique(colors, return_counts=True)
+            colors_count_array.append(counts)
+            unique_colors_array.append(unique_colors)
         
-    
-    
-    def quantized_color_set(self, image, bits_per_channel):
-
-        shift = 8 - bits_per_channel
-        img_quantized = np.right_shift(image, shift).astype(np.uint16)
-
-        # 3. Combine channels into a single index value per pixel
-        # For example, if bits_per_channel=4: 
-        #   R: 4 bits, G: 4 bits, B: 4 bits → total 12 bits
-        color_indices = (
-            (img_quantized[:, :, 0] << (2 * bits_per_channel)) +
-            (img_quantized[:, :, 1] << bits_per_channel) +
-            img_quantized[:, :, 2]
-        )
-
-        # 4. Count unique color indices
-        return color_indices
-    
-    
-    
-    
-    def j_distance(self,colors1, colors2):
-        
-        if colors1.size == 0 or colors2.size == 0:
-            return 0.0
-        
-        intersection = np.intersect1d(colors1, colors2).size
-        union = np.union1d(colors1, colors2).size
-        return intersection / union
-    
-    def keep_relevant_colors(self, color_array, color_count, percent=0.9):
-        
-
-    
-            order = np.argsort(color_count)[::-1]
-            sorted_counts = color_count[order]
-            sorted_colors = color_array[order]
-            cum = np.cumsum(sorted_counts)
-            total = cum[-1]
-
-            cutoff_idx = np.searchsorted(cum, percent * total)
-            return sorted_colors[:cutoff_idx + 1]
-
-    def is_similar(self,s,t):
-        if(s>=t):
-            return 1
-        else:
-            return 0
-    
-    
-    def edge_distance_function(self,img1_path,img2_path,low_threshold=100,high_threshold=200):
-        
-        img1 = self.load_image_gs(img1_path)
-        img2 = self.load_image_gs(img2_path)
-
-        #resize
-        if img1.shape != img2.shape:
-            img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
-        
-        edges1 = cv2.Canny(img1, low_threshold, high_threshold)
-        edges2 = cv2.Canny(img2, low_threshold, high_threshold)
-
-        e1 = edges1 > 0
-        e2 = edges2 > 0
-
-        intersection = np.logical_and(e1, e2).sum()
-        union = np.logical_or(e1, e2).sum()
-
-    
-        distance = 2 * intersection / (e1.sum() + e2.sum()) if (e1.sum() + e2.sum()) > 0 else 0
-        return distance
-    
-    def perceptual_similarity(self,img1_path,img2_path,use_mask=True):
-        
-        
-        
-
-        img1 = self.load_image(img1_path)
-        img2 = self.load_image(img2_path)
-
-        if img1.shape != img2.shape:
-            img2 = cv2.resize(img2, (img1.shape[1], img1.shape[0]))
-        
+        return unique_colors_array,colors_count_array
 
 
 
-        ssim_r,ssim_r_map = ssim(img1[:,:,0], img2[:,:,0],full=True)
-        ssim_g,ssim_g_map = ssim(img1[:,:,1], img2[:,:,1],full=True)
-        ssim_b,ssim_b_map = ssim(img1[:,:,2], img2[:,:,2],full=True)
-        
-        if(use_mask==True):
-            mask = self.edge_mask(img1)
-            
-            ssim_r = np.mean(ssim_r_map[mask > 0])
-            ssim_g = np.mean(ssim_g_map[mask > 0])
-            ssim_b = np.mean(ssim_b_map[mask > 0])
-        
-        ssim_mean = (ssim_r + ssim_g + ssim_b) / 3
-        return ssim_mean
-    
-    
-    def hsv_hist_similarity(self,img1_path,img2_path):
-        img1 = self.convert_to_hsv(self.load_image(img1_path))
-        img2 = self.convert_to_hsv(self.load_image(img2_path))
 
-        hist1 = cv2.calcHist([img1], [0, 1], None, [50,60], [0, 180, 0, 256])
-        hist2 = cv2.calcHist([img2], [0, 1], None, [50,60], [0, 180, 0, 256])
-    
-        hist1 = cv2.normalize(hist1, hist1).flatten()
-        hist2 = cv2.normalize(hist2, hist2).flatten()
-
-        
-        score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
-        return score
-    
-    def edge_mask(self,img):
-        # 1. Convert to grayscale
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # 2. Detect edges (Canny)
-        edges = cv2.Canny(gray, 100, 200)
-
-        # 3. Optionally thicken edges to cover adjacent pixels
-        kernel = np.ones((3,3), np.uint8)
-        mask = cv2.dilate(edges, kernel, iterations=1)
-
-        # 4. Convert binary edge map to mask (white=keep)
-        mask = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY)[1]
-        return mask
-
-    
-    def hist_similarity(self,img1_path,img2_path):
-        
-        img1 = self.load_image(img1_path)
-        img2 = self.load_image(img2_path)
-
-
-
-        hist1 = cv2.calcHist([img1], [0, 1, 2], self.edge_mask(img1), [16,16,16], [0, 256, 0, 256, 0, 256])
-        hist2 = cv2.calcHist([img2], [0, 1, 2], self.edge_mask(img2), [16,16,16], [0, 256, 0, 256, 0, 256])
-    
-        hist1 = cv2.normalize(hist1, hist1).flatten()
-        hist2 = cv2.normalize(hist2, hist2).flatten()
-
-        
-        score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_CORREL)
-        return score
-    
     def fft_texture_features(self,img_path):
         img = self.load_image_gs(img_path)
         f = np.fft.fft2(img)
         fshift = np.fft.fftshift(f)
         magnitude_spectrum = np.log1p(np.abs(fshift))
-
-        # Compute energy in low, mid, and high frequencies
         h, w = magnitude_spectrum.shape
         cy, cx = h//2, w//2
         r = min(cx, cy)
+        
+        #energy in low, mid and high frequency bands
         low = magnitude_spectrum[cy-r//4:cy+r//4, cx-r//4:cx+r//4].mean()
         mid = magnitude_spectrum[cy-r//2:cy+r//2, cx-r//2:cx+r//2].mean()
         high = magnitude_spectrum.mean()
@@ -843,43 +974,6 @@ class ImageComplexity:
         df_fft['image_path'] = self.images['image_path'].values
         return df_fft
 
-    def color_moments(self,image_path,cs='LAB'):
-        
-        img = self.load_image(image_path, convert_rgb=False)
-        
-
-        if cs == 'RGB':
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img = img.astype(np.float32) / 255.0
-
-        elif cs == 'HSV':
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype(np.float32)
-            img[:, 0] /= 179.0  # H
-            img[:, 1] /= 255.0  # S
-            img[:, 2] /= 255.0  # V
-
-        elif cs == 'LAB':
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2Lab).astype(np.float32)
-            img[:, 0] /= 100.0                 # L
-            img[:, 1] = (img[:, 1] + 128) / 255.0  # a
-            img[:, 2] = (img[:, 2] + 128) / 255.0  # b
-
-        else:
-            raise ValueError("color_space must be one of ['RGB', 'HSV', 'LAB']")
-
-
-        # Split channels
-        channels = cv2.split(img)
-        features = []
-        for ch in channels:
-            mean = np.mean(ch)
-            std = np.std(ch)
-            #sk = np.mean(skew(ch)) 
-            features.extend([mean, std])
-
-        return np.array(features)
-
-    
     
     def haralick_features(self,image_path,get_embeddings=False):
         
@@ -919,323 +1013,160 @@ class ImageComplexity:
         df_haralick['class'] = self.images['class'].values
         df_haralick['image_path'] = self.images['image_path'].values
         return df_haralick
+    
+    
+
             
-    
-    def haralick_similarity(self,img1_path,img2_path):
-        img1_features = self.haralick_df[self.haralick_df['image_path']==img1_path]['contrast'].values[0]
-        img2_features = self.haralick_df[self.haralick_df['image_path']==img2_path]['contrast'].values[0]
+    #--------------------------------Per class averages -------------------------
 
+    def jpeg_compression_ratio_per_class(self, quality=90, channel='all', is_edge_processing=False, edge_method='sobel', direction='all'):
+        '''
+        Get the average JPEG compression ratio values per class for the specified quality and channel.
+        If the compression ratio values are not yet calculated, it will calculate them first.
+
+        Returns:
+        - pd.DataFrame: A DataFrame containing the average JPEG compression ratio values for each class.
+        '''
+
+
+        if('jpeg_compression_ratio' not in self.images.columns or 'jpeg_rmse' not in self.images.columns):
+            self.jpeg_compression_ratio(quality=quality, channel=channel, is_edge_processing=is_edge_processing, edge_method=edge_method, direction=direction)
         
+        return self.images.groupby('class')[['jpeg_compression_ratio', 'jpeg_rmse']].mean().reset_index()
 
-        return abs(img1_features-img2_features)
-    
-    
-    
-    def color_moments_similarity(self,img1_path,img2_path):
-        img1_color_moments = self.color_moments(img1_path)
-        img2_color_moments = self.color_moments(img2_path)
-
-        similarity = 1 / (1 + np.linalg.norm(img1_color_moments - img2_color_moments))
-
-        return similarity
-    
-    def similarity_overlap(self,distance_metric="edge",use_mask=False):
+    def edge_density_per_class(self, method='canny'):
+        '''
+        Get the average edge density values per class for the specified edge detection method.
+        If the edge density values are not yet calculated for the specified method, it will calculate them using default paramenters.
         
-        classes = np.unique(self.images['class'])
-        overlap_array = [[] for _ in range (len(classes))]
+        Returns:
+        - pd.DataFrame: A DataFrame containing the average edge density values for each class and the specified method.
         
-        if(distance_metric=='edge'):
-            distance_function = self.edge_distance_function
-        elif(distance_metric=='ssim'):
-            distance_function = self.perceptual_similarity
-        elif(distance_metric=='hist'):
-            distance_function = self.hist_similarity
-        elif(distance_metric=='hs_hist'):
-            distance_function = self.hsv_hist_similarity
-        elif(distance_metric=='color_moments'):
-            distance_function = self.color_moments_similarity
-        elif(distance_metric=='haralick'):
-            distance_function = self.haralick_similarity
-            self.haralick_df = self.get_haralick_features()
+        '''
+        if(method == 'canny'):
+            if('edge_density_canny' not in self.images.columns):
+                self.edge_density_canny()
+            return self.images.groupby('class')[['edge_density_canny']].mean().reset_index()
+        
+        elif(method == 'sobel'):
+            if('edge_density_sobel' not in self.images.columns):
+                self.edge_density_sobel()
+            return self.images.groupby('class')[['edge_density_sobel']].mean().reset_index()
+        
         else:
-            return 
-        instance_count = 0
-        for name in self.images['image_path']:
-            
-            
+            raise ValueError("Method must be either 'canny' or 'sobel'.")
 
-            
+    def get_rgb_mean_per_class(self):
+        '''
+        Get the average RGB mean values per class.
+        If the RGB mean values are not yet calculated, it will calculate them first. 
 
-            c_count = 0
-            for c in classes:
-                
-                diff_class_indices = np.where(self.images['class'] == c)[0]
+        Returns:
+        - pd.DataFrame: A DataFrame containing the average RGB mean values for each class.
+        '''
 
-                class_sims = [distance_function(name,self.images.iloc[s]['image_path']) for s in diff_class_indices if name != self.images.iloc[s]['image_path']]
+        if('R_mean' not in self.images.columns or 'G_mean' not in self.images.columns or 'B_mean' not in self.images.columns):
+            self.rgb_mean()
+        
+        return self.images.groupby('class')[['R_mean', 'G_mean', 'B_mean']].mean().reset_index()
 
-                overlap_array[c_count].append(np.mean(class_sims))
-                c_count +=1
+    def get_hsv_mean_per_class(self):
 
+        '''
+        Get the average HSV mean values per class.
+        If the HSV mean values are not yet calculated, it will calculate them first. 
 
-            instance_count +=1
-
-            print(instance_count)
+        Returns:
+        - pd.DataFrame: A DataFrame containing the average HSV mean values for each class.
+        '''
     
-    
-        overlap_array = np.array(overlap_array)
-        for i in range(len(classes)):
-            self.images['class_similarity' + str(i)] = overlap_array[i]
-    
-    
-    def count_unique_colors(self,bits_per_channel,use_mask):
-        unique_colors_array = []
-        colors_count_array = []
+        if('H_mean' not in self.images.columns or 'S_mean' not in self.images.columns or 'V_mean' not in self.images.columns):
+            self.hsv_mean()
         
-        for name in self.images['image_path']:
-            image = self.load_image(name)
+        return self.images.groupby('class')[['H_mean', 'S_mean', 'V_mean']].mean().reset_index()
 
+    def calculate_entropy_per_class(self):
+        '''
+        Get the average entropy values per class.
+        If the entropy values are not yet calculated, it will calculate them first.
+
+        Returns:
+        - pd.DataFrame: A DataFrame containing the average entropy values for each class.
+
+        '''
+
+
+        if('entropy' not in self.images.columns):
+            self.entropy_measure()
         
-                
-            
-            colors = self.quantized_color_set(image,bits_per_channel)
-
-            if(use_mask):
-                mask = self.edge_mask(image)
-                colors = colors[mask>0]
-
-            # Count how many times each color is present in the image
-            unique_colors, counts = np.unique(colors, return_counts=True)
-            colors_count_array.append(counts)
-            unique_colors_array.append(unique_colors)
-        
-        return unique_colors_array,colors_count_array
-    
-    def color_overlap(self,bits_per_channel=4,use_mask=False):
-        
-        
-        unique_colors_array, colors_count_array = self.count_unique_colors(bits_per_channel,use_mask)
-
-        row = 0
-        
-    
-        classes = np.unique(self.images['class'])
-        inter_class_colors = [[] for _ in range (len(classes))]
-        for name in self.images['image_path']:
-            
-            
-            this_colors = unique_colors_array[row]
-            this_counts = colors_count_array[row]
-        
-            c_count = 0
-            for c in classes:
-                
-                diff_class_indices = np.where(self.images['class'] == c)[0]
-
-                
-            
-                other_class_sims = [self.j_distance(self.keep_relevant_colors(this_colors,this_counts), 
-                                                    self.keep_relevant_colors(unique_colors_array[s],colors_count_array[s])
-                                                    ) for s in diff_class_indices if name != self.images.iloc[s]['image_path']]
-                
-                sims = other_class_sims
-                #sims = [self.is_similar(s,0.15) for s in other_class_sims]
-
-                inter_class_colors[c_count].append(np.mean(sims))
-                c_count +=1
-
-            row +=1
-
-        inter_class_colors = np.array(inter_class_colors)
-        for i in range(len(classes)):
-            self.images['class_colors_' + str(i)] = inter_class_colors[i]
+        return self.images.groupby('class')[['entropy']].mean().reset_index()
 
     def zipf_difference_per_class(self, channel='all'):
-        #Verify if compression ratios are already calculated
-        if 'zipf_diff_slope' not in self.images.columns or 'zipf_diff_r_value' not in self.images.columns:
+        '''
+        Get the average Zipf difference slope and r-value per class for the specified channel.
+        If the Zipf difference values are not yet calculated for the specified channel, it will calculate them first.
+
+        Returns:
+        - pd.DataFrame: A DataFrame containing the average Zipf difference slope and r-value
+        '''
+        if('zipf_diff_slope' not in self.images.columns or 'zipf_diff_r_value' not in self.images.columns):
             self.zipf_difference(channel=channel)
         
         return self.images.groupby('class')[['zipf_diff_slope', 'zipf_diff_r_value']].mean().reset_index()
     
     
     def zipf_rank_per_class(self, channel='all'):
-        #Verify if compression ratios are already calculated
-        if 'zipf_slope' not in self.images.columns or 'zipf_r_value' not in self.images.columns:
+        '''
+        Get the average Zipf rank slope and r-value per class for the specified channel.
+        If the Zipf rank values are not yet calculated for the specified channel, it will calculate them first.
+        Returns:
+        - pd.DataFrame: A DataFrame containing the average Zipf rank slope and r-value for each class.
+        '''
+
+        if('zipf_slope' not in self.images.columns or 'zipf_r_value' not in self.images.columns):
             self.zipf_rank(channel=channel)
         
         return self.images.groupby('class')[['zipf_slope', 'zipf_r_value']].mean().reset_index()
-
-    def _knn_density_estimation(self, query_points, reference_points,k_neighbors=5):
-
-        if len(reference_points) < k_neighbors:
-            k = len(reference_points)
-        else:
-            k = k_neighbors
-            
-        # Fit KNN on reference points
-        knn = NearestNeighbors(n_neighbors=k, algorithm='auto')
-        knn.fit(reference_points)
-        
-        # Find distances to k-nearest neighbors for each query point
-        distances, _ = knn.kneighbors(query_points)
-        
-        # Volume of hypercube in d-dimensional space
-        d = reference_points.shape[1]
-        volumes = (2 * distances[:, -1]) ** d  # diameter = 2 * radius
-        
-        # Avoid division by zero
-        volumes = np.maximum(volumes, 1e-10)
-        
-        # Density estimation: k / (n * volume)
-        n_ref = len(reference_points)
-        densities = k / (n_ref * volumes)
-        
-        return densities
-    
-    def compute_pairwise_similarity(self, embeddings_i, embeddings_j,n_samples=50):
-        #project the images into 2D using t-SNE
-        
-
-        
-        mc_samples = embeddings_i[np.random.choice(len(embeddings_i), min(n_samples, len(embeddings_i)), replace=False)]
-        
-        # Estimate P(phi(x)|C_j) for each Monte Carlo sample from C_i
-        p_j_given_i = self._knn_density_estimation(mc_samples, embeddings_j)
-        
-        # Monte Carlo approximation: E_{P(phi(x)|C_i)}[P(phi(x)|C_j)]
-        similarity = np.mean(p_j_given_i)
-        
-        return similarity
-    
-    def compute_similarity_matrix_S(self, data, n_samples=50):
-
-    
-        class_labels = self.images['class'].unique()
-        K = len(class_labels)
-        similarity_matrix_S = np.zeros((K, K))
-        
-        print("Computing similarity matrix S...")
-        for i in range(K):
-            for j in range(K):
-                
-                embeddings_i = data[self.images['class'] == class_labels[i]]
-                embeddings_j = data[self.images['class'] == class_labels[j]]
-                similarity_matrix_S[i, j] = self.compute_pairwise_similarity(embeddings_i, embeddings_j,n_samples=n_samples)
-
-        
-        return similarity_matrix_S
-
-    def compute_adjacency_matrix_W(self, similarity_matrix_S):
-        
-        K = similarity_matrix_S.shape[0]
-        adjacency_matrix_W = np.zeros((K, K))
-        
-        print("Computing adjacency matrix W...")
-        for i in range(K):
-            for j in range(K):
-                if i == j:
-                    adjacency_matrix_W[i, j] = 1.0  # Self-similarity
-                else:
-                    # Bray-Curtis similarity: 1 - (sum|S_ik - S_jk|) / (sum|S_ik + S_jk|)
-                    numerator = np.sum(np.abs(similarity_matrix_S[i, :] - similarity_matrix_S[j, :]))
-                    denominator = np.sum(np.abs(similarity_matrix_S[i, :] + similarity_matrix_S[j, :]))
-                    
-                    if denominator == 0:
-                        adjacency_matrix_W[i, j] = 0.0
-                    else:
-                        adjacency_matrix_W[i, j] = 1.0 - (numerator / denominator)
-        
-        # Ensure symmetry
-        adjacency_matrix_W = (adjacency_matrix_W + adjacency_matrix_W.T) / 2
-        
-        return adjacency_matrix_W
-    
-    def compute_laplacian_matrix_L(self, adjacency_matrix_W):
-    
-        # Degree matrix: D_ii = sum_j W_ij
-        degree_matrix_D = np.diag(np.sum(adjacency_matrix_W, axis=1))
-        
-        # Laplacian matrix: L = D - W
-        laplacian_matrix_L = degree_matrix_D - adjacency_matrix_W
-        
-        
-        return laplacian_matrix_L, degree_matrix_D
-    
-    def compute_spectrum(self, laplacian_matrix_L):
-
-        # Compute eigenvalues and eigenvectors
-        eigenvalues, eigenvectors = eigh(laplacian_matrix_L)
-        
-        # Sort by eigenvalues (ascending)
-        sort_idx = np.argsort(eigenvalues)
-        eigenvalues = eigenvalues[sort_idx]
-        eigenvectors = eigenvectors[:, sort_idx]
-        
-        self.eigenvalues = eigenvalues
-        self.eigenvectors = eigenvectors
-        
-        return eigenvalues, eigenvectors
     
 
-    def compute_csg_complexity(self, eigenvalues):
-        
-        K = len(eigenvalues)
-        
-        
-        normalized_eigengaps = np.zeros(K-1)
-        for i in range(K-1):
-            delta_lambda = eigenvalues[i+1] - eigenvalues[i]
-            normalized_eigengaps[i] = delta_lambda / (K - i)
-        
-        
-        cumulative_max = np.zeros_like(normalized_eigengaps)
-        current_max = 0
-        for i in range(len(normalized_eigengaps)):
-            current_max = max(current_max, normalized_eigengaps[i])
-            cumulative_max[i] = current_max
-        
-       
-        csg_score = np.sum(cumulative_max)
-        
-        self.normalized_eigengaps = normalized_eigengaps
-        self.cumulative_max = cumulative_max
-        self.csg_score = csg_score
-        
-        return csg_score, normalized_eigengaps, cumulative_max
+
+    
     
 
     
+
+
+    # -------------------- OVERLAP METRICS -------------------------
+
+
 
     
     def compute_normalized_matrices(self, X, y):
-        
+        '''
+        Compute the normalized within-class scatter matrix (S_w_hat) and the normalized between-class scatter matrix (S_b_hat).
+        '''
         n_samples, n_features = X.shape
         classes = np.unique(y)
         
         
-        # Global mean
         global_mean = np.mean(X, axis=0)
         
-        # Initialize scatter matrices
         S_w_hat = np.zeros((n_features, n_features))
         S_b_hat = np.zeros((n_features, n_features))
         
         total_samples = n_samples
         
         for cls in classes:
-            # Get samples for current class
             class_mask = (y == cls)
             X_class = X[class_mask]
-            m_i = len(X_class)  # Number of samples in class i
+            m_i = len(X_class)  
             
                 
-            # Class mean
             class_mean = np.mean(X_class, axis=0)
             
-            # Normalized within-class scatter for this class
             centered_class = X_class - class_mean
             S_w_hat += (1 / m_i) * centered_class.T @ centered_class
             
-            # Normalized between-class scatter for this class
             mean_diff = class_mean - global_mean
             weight = m_i / total_samples
             S_b_hat += weight * np.outer(mean_diff, mean_diff)
@@ -1245,16 +1176,14 @@ class ImageComplexity:
     
     
     def compute_m_sep_direct(self, S_w_hat, S_b_hat):
+        '''
+        Auxiliary function to compute M_sep directly from the normalized within-class scatter matrix S_w_hat and the normalized between-class scatter matrix S_b_hat.
+        '''
         
         try:
-            # Solve generalized eigenvalue problem: S_w_hat^{-1} S_b_hat v = λ v
             eigenvalues, eigenvectors = eigh(S_b_hat, S_w_hat)
-            
-            # Find largest eigenvalue (M_sep value)
             max_idx = np.argmax(eigenvalues)
             m_sep = eigenvalues[max_idx]
-            
-            
             return m_sep
             
         except np.linalg.LinAlgError:
@@ -1267,8 +1196,21 @@ class ImageComplexity:
             
 
 
-    def compute_m_sep(self,emb_type='CNN_tsne', layer_index=-1, reduction_type=None, reduction_method=None):
-        
+    def m_sep_measure(self,emb_type='CNN', layer_index=-1, reduction_type=None, reduction_method=None):
+        '''
+        Compute the M_sep measure of class separability in the embedding space.
+
+        M_sep is calculated using the normalized within-class scatter matrix (S_w_hat) and the normalized between-class scatter matrix (S_b_hat) in the embedding space.
+
+        Parameters:
+        - emb_type (str): The type of embeddings to use for the calculation.
+        - layer_index (int): The index of the layer from which to extract embeddings. If -1 is specified, the final layer embeddings will be used.
+        - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating M_sep. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
+        - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
+
+        Returns:
+        - float: The calculated M_sep value representing class separability in the embedding space.
+        '''
         embs = self.embed_images(emb_type=emb_type, layer_index=layer_index)
 
         if embs is None:
@@ -1289,175 +1231,21 @@ class ImageComplexity:
 
 
 
-
-
-    def compute_spectral_metrics(self, eigenvalues):
-    
-        K = len(eigenvalues)
-        
-        # Basic spectral metrics
-        spectral_span = eigenvalues[-1] - eigenvalues[0]
-        spectral_gap = eigenvalues[1] - eigenvalues[0]  # λ₁ - λ₀
-        
-        # Area under eigenvalue curve
-        area_under_curve = np.sum(eigenvalues)
-        
-        # Find the largest eigengap and its position
-        eigengaps = np.diff(eigenvalues)
-        max_eigengap_idx = np.argmax(eigengaps)
-        max_eigengap = eigengaps[max_eigengap_idx]
-        
-        # Compute CSG
-        csg_score, normalized_eigengaps, cumulative_max = self.compute_csg_complexity(eigenvalues)
-        
-        metrics = {
-            'csg_score': csg_score,
-            'spectral_span': spectral_span,
-            'spectral_gap': spectral_gap,
-            'area_under_curve': area_under_curve,
-            'max_eigengap': max_eigengap,
-            'max_eigengap_position': max_eigengap_idx,
-            'normalized_max_eigengap': max_eigengap / (K - max_eigengap_idx),
-            'num_classes': K,
-            'eigenvalues': eigenvalues,
-            'normalized_eigengaps': normalized_eigengaps,
-            'cumulative_max': cumulative_max
-        }
-        
-        return metrics
-
-
-    def embed_images(self, emb_type, layer_index=-1):
-        
-        
-        #check if models are loaded if the chosen emb_type requires it
-        # Return with warning if model is not loaded
-        if(emb_type in ['CNN','CNN_tsne','CNN_random'] and not hasattr(self, 'model')):
-            print("Model not loaded. Please load a model before extracting CNN embeddings.")
-            return None 
-
-        if(emb_type == 'current'):
-            if(self.feature_embeddings is None):
-                print("No current embeddings found.")
-                return None
-            return self.feature_embeddings
-        
-        
-        if(emb_type == 'raw'):
-
-            feature_embeddings = self.images['image_path'].apply(lambda x:  cv2.resize(self.load_image(x), (self.model.input_shape[2], self.model.input_shape[1])).flatten()).tolist()
-            self.feature_embeddings = np.array(feature_embeddings)
-            
-            
-        elif(emb_type == 'tsne'):
-            feature_embeddings = self.images['image_path'].apply(lambda x:  cv2.resize(self.load_image(x), (self.model.input_shape[2], self.model.input_shape[1])).flatten()).tolist()
-            feature_embeddings = np.array(feature_embeddings)
-            tsne = TSNE(n_components=2, random_state=42)
-            self.feature_embeddings = tsne.fit_transform(feature_embeddings)
-
-        elif(emb_type == 'CNN'):
-            self.feature_embeddings = self.get_feature_embeddings_all(layer_index=layer_index).reshape(len(self.images), -1)
-            
-
-        elif(emb_type == 'CNN_tsne'):
-            self.feature_embeddings = self.get_feature_embeddings_all(layer_index=layer_index).reshape(len(self.images), -1)
-            tsne = TSNE(n_components=2, random_state=42)
-            self.feature_embeddings = tsne.fit_transform(self.feature_embeddings)
-        
-        elif(emb_type == 'CNN_pca'):
-            self.feature_embeddings = self.get_feature_embeddings_all(layer_index=layer_index).reshape(len(self.images), -1)
-            pca = PCA(n_components=50)
-            self.feature_embeddings = pca.fit_transform(self.feature_embeddings)
-        
-        elif(emb_type == 'random'):
-            feature_embeddings = self.images['image_path'].apply(lambda x:  cv2.resize(self.load_image(x), (self.model.input_shape[2], self.model.input_shape[1])).flatten()).tolist()
-            feature_embeddings = np.array(feature_embeddings)
-            
-            n_features = feature_embeddings.shape[1]
-            n_components = 50 
-
-            r = np.random.normal(0, 1/np.sqrt(n_components), (n_features, n_components))
-            self.feature_embeddings = feature_embeddings @ r
-        elif(emb_type == 'CNN_random'):
-            self.feature_embeddings = self.get_feature_embeddings_all(layer_index=layer_index).reshape(len(self.images), -1)
-            n_features = self.feature_embeddings.shape[1]
-            n_components = 50 
-
-            r = np.random.normal(0, 1/np.sqrt(n_components), (n_features, n_components))
-            self.feature_embeddings = self.feature_embeddings @ r
-        elif(emb_type == 'efficient_net'):
-            print("Extracting EfficientNet-Lite0 embeddings...")
-            model = EfficientNetLite0EmbeddingModel()
-            feature_embeddings = self.images['image_path'].apply(lambda x:  model(self.load_image(x)).tolist())
-            
-            
-            
-            
-
-
-            
-            self.feature_embeddings = np.array(feature_embeddings.tolist()).astype(np.float32)
-            print("EfficientNet-Lite0 embeddings extracted.")
-
-        elif(emb_type == 'efficient_net_pca'):
-            model = EfficientNetLite0EmbeddingModel()
-            feature_embeddings = self.images['image_path'].apply(lambda x:  model(self.load_image(x)).tolist())
-
-            #ensure it's a numpy array with float values
-            feature_embeddings = np.array(feature_embeddings.tolist()).astype(np.float32)
-            #feature_embeddings = self.normalize_embs(feature_embeddings)
-
-
-            pca = PCA(n_components=100)
-            self.feature_embeddings = pca.fit_transform(feature_embeddings)
-        
-        elif(emb_type == 'mobile_net_pca'):
-            model = MobileNetV3EmbeddingModel()
-            feature_embeddings = self.images['image_path'].apply(lambda x:  model(self.load_image(x)).tolist())
-
-            #ensure it's a numpy array with float values
-            feature_embeddings = np.array(feature_embeddings.tolist()).astype(np.float32)
-            #feature_embeddings = self.normalize_embs(feature_embeddings)
-
-            pca = PCA(n_components=50)
-            self.feature_embeddings = pca.fit_transform(feature_embeddings) 
-            
-        return self.feature_embeddings
     
 
-    def dim_reduction(self,emb,method='pca',n_compoments=50,custom_method=None): 
-        if(method=='pca'):
-            reduction_method = PCA(n_components=n_compoments)
-            reduced_embs = reduction_method.fit_transform(emb)
-            self.reduction_method = reduction_method
-        elif(method=='tsne'):
-            reduction_method = TSNE(n_components=n_compoments, random_state=42)
-            reduced_embs = reduction_method.fit_transform(emb)
-            self.reduction_method = reduction_method
+    def tabular_measure(self, layer_index=-1, reduction_type=None, reduction_method=None, emb_type='CNN', measure='kdn'):
+        '''
+        Calculate overlap measures using the pycol complexity libray.
 
-        elif(method=='custom'):
-            reduced_embs = custom_method(emb)
-        
-        
-        return reduced_embs
+        Measure is stored in the self.overlap_measures_dic dictionary with a key composed of the measure name, embedding type, and layer index.
 
-
-    def normalize_embs(self,embs):
-        #normalize
-        embs_min = np.array(embs.min(axis=0))
-        embs_max = np.array(embs.max(axis=0))
-
-        #check if max equals min to avoid division by zero
-        zro_mask = (embs_max - embs_min) == 0
-        embs_max[zro_mask] = 1
-        embs_min[zro_mask] = 0
-
-        embs = (embs - embs_min) / (embs_max - embs_min)
-
-        return embs
-
-    def tabular_measure(self, layer_index=-1, reduction_type=None, reduction_method=None, emb_type='CNN_tsne', measure='kdn'):
-        
+        Parameters:
+        - layer_index (int): The index of the layer from which to extract embeddings. If -1 is specified, the final layer embeddings will be used.
+        - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating the overlap measures. Options are 'pca', 'tsne', or 'custom'. 
+        - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
+        - emb_type (str): The type of embeddings to use for the calculation. 
+        - measure (str): The specific overlap measure to calculate. Options are 'n2', 'kdn', or 'lsc'. Each measure captures different aspects of class overlap and complexity in the feature space.
+        '''
 
         embs = self.embed_images(emb_type=emb_type, layer_index=layer_index)
         if embs is None:
@@ -1471,20 +1259,165 @@ class ImageComplexity:
         dataset_dic = {'X': embs, 'y': self.images['class'].values}
 
         if(measure=='n2'):
-            comp_value = Complexity(file_type='array',dataset=dataset_dic).N2(imb=True)
+            comp_value = pycol_complexity.Complexity(file_type='array',dataset=dataset_dic).N2(imb=True)
         if(measure=='kdn'):
-            comp_value = Complexity(file_type='array',dataset=dataset_dic).kDN(imb=True)
+            comp_value = pycol_complexity.Complexity(file_type='array',dataset=dataset_dic).kDN(imb=True)
         if(measure=='lsc'):
-            comp_value = Complexity(file_type='array',dataset=dataset_dic).LSC(imb=True)
+            comp_value = pycol_complexity.Complexity(file_type='array',dataset=dataset_dic).LSC(imb=True)
 
 
         layer_index_str = str(layer_index) if layer_index >= 0 else "final" 
         self.overlap_measures_dic[measure + '_' + emb_type + '_layer' + str(layer_index_str)] = comp_value
 
         return comp_value
+    
 
-    def csg_measure(self, layer_index=-1,emb_type='CNN_tsne',n_samples=50,summarize_results=True,  reduction_type=None,reduction_method=None):
+
+
+    def knn_density_estimation(self, query_points, reference_points,k_neighbors=5):
+
+        if len(reference_points) < k_neighbors:
+            k = len(reference_points)
+        else:
+            k = k_neighbors
+            
+        knn = NearestNeighbors(n_neighbors=k, algorithm='auto')
+        knn.fit(reference_points)
         
+        distances, _ = knn.kneighbors(query_points)
+        
+        d = reference_points.shape[1]
+        
+        volumes = (2 * distances[:, -1]) ** d  
+        volumes = np.maximum(volumes, 1e-10)
+        
+        n_ref = len(reference_points)
+        densities = k / (n_ref * volumes)
+        
+        return densities
+    
+    def compute_pairwise_similarity(self, embeddings_i, embeddings_j,n_samples=50):
+        
+        inxs = np.random.choice(len(embeddings_i), min(n_samples, len(embeddings_i)), replace=False)
+        monte_carlo_samples = embeddings_i[inxs]
+        probalities = self.knn_density_estimation(monte_carlo_samples, embeddings_j)      
+        similarity = np.mean(probalities)
+        
+        return similarity
+    
+    def compute_similarity_matrix_S(self, data, n_samples=50):
+        '''
+        Compute similarity matrix S where S[i, j] represents the average similarity between samples from class i and samples from class j in the embedding space.
+        '''
+    
+        class_labels = self.class_labels
+        num_classes = self.num_classes
+
+
+        similarity_matrix_S = np.zeros((num_classes, num_classes))
+        
+        print("Computing similarity matrix S...")
+        for i in range(num_classes):
+            for j in range(num_classes):
+                
+                embeddings_i = data[self.images['class'] == class_labels[i]]
+                embeddings_j = data[self.images['class'] == class_labels[j]]
+                similarity_matrix_S[i, j] = self.compute_pairwise_similarity(embeddings_i, embeddings_j,n_samples=n_samples)
+        print("Similarity matrix S computed.")
+        
+        return similarity_matrix_S
+
+    def compute_adjacency_matrix_W(self, similarity_matrix_S):
+        
+        size = similarity_matrix_S.shape[0]
+        adjacency_matrix_W = np.zeros((size, size))
+        
+        print("Computing adjacency matrix W...")
+        for i in range(size):
+            for j in range(size):
+                if i == j:
+                    adjacency_matrix_W[i, j] = 1.0  
+                else:
+                    numerator = np.sum(np.abs(similarity_matrix_S[i, :] - similarity_matrix_S[j, :]))
+                    denominator = np.sum(np.abs(similarity_matrix_S[i, :] + similarity_matrix_S[j, :]))
+                    
+                    if denominator == 0:
+                        adjacency_matrix_W[i, j] = 0.0
+                    else:
+                        adjacency_matrix_W[i, j] = 1.0 - (numerator / denominator)
+        
+        adjacency_matrix_W = (adjacency_matrix_W + adjacency_matrix_W.T) / 2
+        
+        return adjacency_matrix_W
+    
+    def compute_laplacian_matrix_L(self, adjacency_matrix_W):
+    
+        degree_matrix_D = np.diag(np.sum(adjacency_matrix_W, axis=1))
+        
+        laplacian_matrix_L = degree_matrix_D - adjacency_matrix_W
+        
+        
+        return laplacian_matrix_L, degree_matrix_D
+    
+    def compute_spectrum(self, laplacian_matrix_L):
+
+        eigenvalues, eigenvectors = eigh(laplacian_matrix_L)
+        
+        sort_idx = np.argsort(eigenvalues)
+        eigenvalues = eigenvalues[sort_idx]
+        eigenvectors = eigenvectors[:, sort_idx]
+        
+        self.eigenvalues = eigenvalues
+        self.eigenvectors = eigenvectors
+        
+        return eigenvalues, eigenvectors
+    
+
+    def compute_csg_complexity(self, eigenvalues):
+        '''
+        Auxiliary function to compute the CSG complexity score based on the eigenvalues of the graph.
+        '''
+
+
+        eig_size = len(eigenvalues)
+        
+        
+        normalized_eigengaps = np.zeros(eig_size-1)
+        for i in range(eig_size-1):
+            delta_lambda = eigenvalues[i+1] - eigenvalues[i]
+            normalized_eigengaps[i] = delta_lambda / (eig_size - i)
+        
+        
+        cumulative_max = np.zeros_like(normalized_eigengaps)
+        current_max = 0
+        for i in range(len(normalized_eigengaps)):
+            current_max = max(current_max, normalized_eigengaps[i])
+            cumulative_max[i] = current_max
+        
+       
+        csg_score = np.sum(cumulative_max)
+        
+        
+        return csg_score
+
+
+
+
+
+    def csg_measure(self, layer_index=-1,emb_type='CNN',n_samples=50,  reduction_type=None,reduction_method=None):
+        '''
+        Calculate the CSG complexity measure based on the spectrum of the graph. 
+        
+        Parameters:
+        - layer_index (int): The index of the layer from which to extract embeddings. If -1 is specified, the final layer embeddings will be used.
+        - emb_type (str): The type of embeddings to use for the calculation.
+        - n_samples (int): The number of samples to use for the Monte Carlo estimation of pairwise similarities.
+        - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating the CSG measure. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
+        - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
+
+        Returns:
+        - float: The calculated CSG complexity score for the dataset based on the specified embedding
+        '''
         
         embs = self.embed_images(emb_type=emb_type, layer_index=layer_index)
         if embs is None:
@@ -1500,19 +1433,25 @@ class ImageComplexity:
         L, D = self.compute_laplacian_matrix_L(W)
         eigenvalues, eigenvectors = self.compute_spectrum(L)
 
-        spectral_metrics = self.compute_spectral_metrics(eigenvalues)
-        self.spectral_metrics = spectral_metrics
+        csg_score = self.compute_csg_complexity(eigenvalues)
+
         
-
         layer_index_str = str(layer_index) if layer_index >= 0 else "final" 
-        self.overlap_measures_dic['csg_' + emb_type + '_layer' + str(layer_index_str)] = spectral_metrics['csg_score']
+        self.overlap_measures_dic['csg_' + emb_type + '_layer' + str(layer_index_str)] = csg_score
 
-        if(summarize_results == True):
-            return spectral_metrics['csg_score']
-        else:
-            return spectral_metrics
+        return csg_score
         
     def plot_overlap_measures(self,cls='average'):
+        '''
+        Plot the overlap measures stored in the self.overlap_measures_dic dictionary as a bar chart.
+        If cls is set to 'average', the average values of the measures will be plotted.
+
+        Parameters:
+        - cls (str): The class for which to plot the measures. If 'average', the average values of the measures will be plotted. If a specific class is specified, only the values for that class will be plotted, assuming the measures are stored as lists or arrays with values for each class.
+        
+        '''
+        
+        
         measures = list(self.overlap_measures_dic.keys())
         values = list(self.overlap_measures_dic.values())
 
@@ -1532,7 +1471,11 @@ class ImageComplexity:
         plt.show()
     
     def plot_intrinsic_measures(self):
-        #intrinsic measures are all the columns added to the image dataframe 
+        '''
+        Plot the intrinsic measures stored in the self.intrinsic_measures_dic dictionary as a bar chart.
+        '''
+
+
         intrinsic_measures = [col for col in self.images.columns if col not in ['image_path', 'class']]
         self.intrinsic_measures_dic = {}
 
@@ -1549,14 +1492,20 @@ class ImageComplexity:
         plt.show()
 
     def plot_tsne(self,embs=None,save_image=False,name="tsne_plot.png",folder="./"):
+        '''
+        Plot a t-SNE visualization of the feature embeddings. If embeddings are not provided, it will use the feature embeddings stored in self.feature_embeddings or calculate them if they are not already calculated.
         
+        Parameters:
+        - embs (np.ndarray): The feature embeddings to use for the t-SNE visualization. If None, the method will use self.feature_embeddings or calculate them if they are not already calculated.
+        - save_image (bool): Whether to save the t-SNE plot as an image file.
+        '''
 
         if(embs is not None):
             embeddings = embs.flatten().reshape(len(self.images), -1)
         else:
             #check if embeddings are already calculated
             if not hasattr(self, 'feature_embeddings'):
-                self.get_feature_embeddings_all()
+                
                 embeddings = self.get_feature_embeddings_all().flatten().reshape(len(self.images), -1)
 
             else:
@@ -1568,10 +1517,7 @@ class ImageComplexity:
         else:
             tsne_results = embeddings
             
-        #normalize
-        #tsne_min = tsne_results.min(axis=0)
-        #tsne_max = tsne_results.max(axis=0)
-        #tsne_results = (tsne_results - tsne_min) / (tsne_max - tsne_min)
+
 
         plt.figure(figsize=(8, 6))
         classes = self.images['class'].unique()
@@ -1595,17 +1541,26 @@ class ImageComplexity:
             plt.show()
 
     def get_all_values_per_class(self):
-        
+        '''
+        Get the average values of all intrinsic measures calculated so far for each class.
+        '''
         #check the columns self.images already has
         existing_columns = self.images.columns.tolist()
         
+        #Remove 'image_path' and 'class' columns from the list of existing columns to get only the intrinsic measure columns
         existing_columns.pop(0)
         existing_columns.pop(0)
         return self.images.groupby('class')[existing_columns].mean().reset_index()
     
 
-    
     def visualize_metrics_per_class(self, metric_name):
+        '''
+        Visualize the average values of a specific intrinsic measure for each class as a bar plot.
+
+        Parameters:
+        - metric_name (str): The name of the intrinsic measure to visualize. This should correspond to a column in the self.images DataFrame that contains the calculated values for that measure.
+        '''
+
         class_means = self.get_all_values_per_class()
         
         plt.figure(figsize=(10, 6))
@@ -1619,27 +1574,26 @@ class ImageComplexity:
     
     
     
-    def plot_feature_distribution(self, df, feature_x, feature_y, class_col="class"):
-        
-        plt.figure(figsize=(8, 6))
-        classes = df[class_col].unique()
+    
 
-        for cls in classes:
-            subset = df[df[class_col] == cls]
-            plt.scatter(subset[feature_x], subset[feature_y], label=cls, alpha=0.7)
         
 
 
-        plt.xlabel(feature_x)
-        plt.ylabel(feature_y)
-        plt.title(f"Feature Distribution: {feature_x} vs {feature_y}")
-        plt.legend()
-        plt.grid(True, alpha=0.3)
-        
-        
-        plt.show()
+dataset = "shapes_dataset"
+folder = "./" + dataset +  "/train/"
+
+classes = ["Circle","Square"]
+
+complexity = ImageComplexity(folder,keep_classes=classes,number_per_class=300)
+
+kDN = complexity.tabular_measure(emb_type='efficient_net',measure='kdn',reduction_type='pca')
+
+print(kDN)
 
 
+
+ #REDUCE DATASET SIZE EXAMPLE
+'''
 dataset = "shapes_dataset"
 folder = "./" + dataset +  "/train/"
 
@@ -1647,7 +1601,7 @@ classes = ["Circle","Square","Triangle"]
 
 complexity_train = ImageComplexity(folder,keep_classes=classes)
 
-
+complexity_train.jpeg_compression_ratio()
 complexity_train.sample_dataset(n_samples_per_class=5000,sample_type='jpeg_compression')
 
 complexity_train.embed_images(emb_type='efficient_net')
@@ -1673,6 +1627,8 @@ y_test = complexity_test.images['class'].values
 
 accuracy_xgb = xgb_classifier(X_train,y_train,X_test,y_test)
 print("XGB Accuracy:", accuracy_xgb)
+'''
+
 
 #------------------------- Viz Examples -------------------------------------
 '''
@@ -1688,7 +1644,7 @@ complexity_train.plot_tsne(embs=complexity_train.feature_embeddings)
 #complexity_train.calculate_energy()
 
 
-#complexity_train.calculate_jpeg_compression_ratio()
+#complexity_train.jpeg_compression_ratio()
 #complexity_train.calculate_entropy()
 #complexity_train.edge_density_canny()
 
