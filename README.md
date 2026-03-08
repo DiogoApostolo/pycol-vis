@@ -119,8 +119,8 @@ In particular de use case folder includes the following files:
 
 * **model_selection.py:** A Use Case showing how the overlap measures in our package can be used to inform model selection
 * **sample_selection.py:** A Use Case showing how the intrinsic measures can be used to reduce the dataset size, selecting only the most relevant samples
-* **feature_selection.py:** A Use Case showing how the overlap measures can be used to reduce the embedding feature space, without losing classfication performance.
-* **viz_options.py:** A Use Case displaying the different visualization options present in our package
+* **dim_reduction.py:** A Use Case showing how the overlap measures can be used to reduce the embedding feature space, without losing classfication performance.
+* **viz_example.py:** A Use Case displaying the different visualization options present in our package
 
 ## References
 
