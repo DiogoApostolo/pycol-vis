@@ -73,9 +73,42 @@ Various datasets are used in the use cases presented in this page. Below is a li
 * [MNIST](https://www.kaggle.com/datasets/hojjatk/mnist-dataset): Handwritten digits
 * [Fashion MNIST](https://www.kaggle.com/datasets/zalando-research/fashionmnist): A dataset of 28x28 pixel images of 10 fashion categories (e.g., shirts, shoes, bags)
 
+This package expects the datasets to be stored in the following structure:
+
+Folder
+├── Class_1
+│   ├── img1.png
+│   └── img2.png
+└── Class_2
+    ├── img1.png
+    └── img2.png
 
 ### Basic Usage
 
+This section shows some basic syntax of how to use our package. Specifically, how to load a dataset, parameterize the setup and how to run the different complexity measures.
+
+```python
+
+# Load the Dataset Stored in the Fruits folder, keeping only the apple and banana class and 100 samples (selected randomly) from each class.
+comp = ImageComplexity('Fruits',
+           keep_classes=['apple',
+           'banana'],
+           number_per_class=100)
+
+#Calculate the CSG overlap Measure and the JPEG Compression measure and print them to the user
+print(comp.csg_measure())
+print(comp.jpeg_compression_ratio())
+
+
+#Example of the CSG parameters, specifying a specific embedding and how many samples to use to estimate probability.
+comp.csg_measure(
+    emb_type="mobile_net",
+    n_samples=50
+)
+
+
+
+```
 
 
 ### Use Cases
