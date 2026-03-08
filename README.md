@@ -36,11 +36,11 @@ The following Table shows the measures implemented in our package divided by fam
 | Intrinsic | FFT Features                                           | fft         | —                    | — |
 
 #### Overlap:
-* **Cumulative Spectral Gradient (CSG):** 
-* **Area Under Laplacian Curve (AULS):** 
-* **Cumulative Maximum Scaled Area Under Laplacian Spectrum (cmAULS):** 
-* **Class Separability (m-sep):** 
-* **In-Class Variability (m-var):** 
+* **Cumulative Spectral Gradient (CSG):** Graph-based measure obtained using spectral clustering. Minimum cutting cost of the Similarity Matrix S. 
+* **Area Under Laplacian Curve (AULS):**  effect of the Area Under Laplacian Spectrum
+* **Cumulative Maximum Scaled Area Under Laplacian Spectrum (cmAULS):** Combines CSG and AULS
+* **Class Separability (m-sep):** Inter Class Separability based on LDA Measure
+* **In-Class Variability (m-var):** Intra Class Separability based on LDA Measure
 
 
 
