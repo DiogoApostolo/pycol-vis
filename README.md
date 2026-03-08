@@ -161,6 +161,7 @@ In particular de use case folder includes the following files:
 * **sample_selection.py:** A Use Case showing how the intrinsic measures can be used to reduce the dataset size, selecting only the most relevant samples
 * **dim_reduction.py:** A Use Case showing how the overlap measures can be used to reduce the embedding feature space, without losing classfication performance.
 * **viz_example.py:** A Use Case displaying the different visualization options present in our package
+* **layers.py** A Use Case of how to train a Custom NN and extract complexity at each layer. 
 
 ## References
 
