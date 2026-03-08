@@ -22,8 +22,8 @@ The following Table shows the measures implemented in our package divided by fam
 | Overlap   | Cumulative Spectral Gradient                           | CSG         | 0–∞                  | [2]  |
 | Overlap   | Area Under Laplacian Spectrum                          | AULS        | 0–∞                  | [3]  |
 | Overlap   | Cumulative Maximum Scaled Area Under Laplacian Spectrum| cmsAULS     | 0–∞                  | [3]  |
-| Overlap   | Class Separability                                     | m-sep       | 0–1                  | [4]  |
-| Overlap   | In-Class Variability                                   | m-var       | 0–1                  | [4]  |
+| Overlap   | Class Separability                                     | m-sep       | 0–∞                  | [4]  |
+| Overlap   | In-Class Variability                                   | m-var       | 0–∞                  | [4]  |
 | Intrinsic | JPEG Compression Ratio                                 | JPEG        | 0–1                  | [5]  |
 | Intrinsic | Fractal Compression                                    | Fractal     | 0–1                  | [5]  |
 | Intrinsic | Entropy                                                | H           | 0–1                  | [6]  |
@@ -32,7 +32,7 @@ The following Table shows the measures implemented in our package divided by fam
 | Intrinsic | Color Average/STD                                      | Color Avg.  | [0–1, 0–1, 0–1]      | [6]  |
 | Intrinsic | Unique Colors                                          | #Colors     | 1–∞                  | [7]  |
 | Intrinsic | Zipf Rank/Difference                                   | Zipf        | 0–1                  | [5]  |
-| Intrinsic | Haralick Features                                      | haralick    | —                    | -  |
+| Intrinsic | Haralick Features                                      | haralick    | 0-1                  | [7]  |
 | Intrinsic | FFT Features                                           | fft         | —                    | — |
 
 #### Overlap:
@@ -52,7 +52,7 @@ The following Table shows the measures implemented in our package divided by fam
 * **Color Average/STD:** The average and standard deviation of the colors of a given image, for each individual channel of the image. Image can be converted into different formats.
 * **Unique Colors:** The unique colors present in a given image. Image is first quantized to reduce the color space, leaving only the most relevant colors.
 * **Zipf Rank/Difference:** Complexity based on Zipf-like statistics and Zipf's Law, which claims that in many natural processes the frequency of something is inversely proportional to its rank. 
-* **Haralick Features:** Group of measures based on haralick features obtained using graycomatrix and graycoprops.
+* **Haralick Features:** Group of measures based on haralick features obtained based on the Gray Level Co-occurrence Matrix.
 * **FFT Features:** Group of measures based on fft features. Image is converted to frequency space and the energy in low, mid and high frequency bands is calculated as well as the radial profile. 
 
 
