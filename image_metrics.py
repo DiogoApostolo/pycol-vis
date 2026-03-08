@@ -1,4 +1,7 @@
+from pyexpat import features
+
 import cv2
+from functorch import dim
 import numpy as np
 import os
 import pandas as pd
@@ -93,7 +96,7 @@ class ImageComplexity:
         for class_name in keep_classes:
             class_path = os.path.join(folder, class_name)
             
-            if os.path.isdir(class_path):
+            if(os.path.isdir(class_path)):
                 count = 0
                 for image_name in os.listdir(class_path):
                     #if the number of images for this class is reached, stop loading more images for this class
@@ -123,7 +126,7 @@ class ImageComplexity:
         '''
         image = cv2.imread(image_path)
         
-        if convert_rgb:
+        if(convert_rgb):
             return self.convert_to_rgb(image)
         
         return image
@@ -222,7 +225,7 @@ class ImageComplexity:
 
         cnn_model = CNNEmbeddingModel(image_shape=self.image_shape, num_classes=self.num_classes, depth=depth)
         
-        if is_train:
+        if(is_train):
             cnn_model.train_model(self.images,epochs=epochs)
         
         self.model = cnn_model
@@ -342,7 +345,7 @@ class ImageComplexity:
         return self.feature_embeddings
     
 
-    def dim_reduction(self,emb,method='pca',n_compoments=50,custom_method=None): 
+    def dim_reduction(self,emb,method='pca',n_components=50,custom_method=None): 
         '''
         Reduce the dimensionality of the feature embeddings using the specified method.
 
@@ -357,12 +360,12 @@ class ImageComplexity:
         
         
         if(method=='pca'):
-            reduction_method = PCA(n_components=n_compoments)
+            reduction_method = PCA(n_components=n_components)
             reduced_embs = reduction_method.fit_transform(emb)
             self.reduction_method = reduction_method
         
         elif(method=='tsne'):
-            reduction_method = TSNE(n_components=n_compoments, random_state=42)
+            reduction_method = TSNE(n_components=n_components, random_state=42)
             reduced_embs = reduction_method.fit_transform(emb)
             self.reduction_method = reduction_method
 
@@ -732,7 +735,7 @@ class ImageComplexity:
             original_image = self.select_channel(name, channel=channel)
 
             # optional edge processing
-            if is_edge_processing:
+            if(is_edge_processing):
                 original_image = self.edge_processing(original_image,method=edge_method,direction=direction)
 
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
@@ -901,6 +904,9 @@ class ImageComplexity:
 
 
     def fft_texture_features(self,img_path):
+        '''
+        Auxiliary function to get the FFT features for a give image. 
+        '''
         img = self.load_image_gs(img_path)
         f = np.fft.fft2(img)
         fshift = np.fft.fftshift(f)
@@ -916,80 +922,75 @@ class ImageComplexity:
 
         return np.array([low, mid, high])
     
-    def fft_radial_profile(self,img_path, num_bins=10):
-        img = self.load_image_gs(img_path)
-        f = np.fft.fft2(img)
-        fshift = np.fft.fftshift(f)
-        magnitude_spectrum = np.log1p(np.abs(fshift))
+    
 
-        h, w = magnitude_spectrum.shape
-        cy, cx = h // 2, w // 2
-        y, x = np.indices((h, w))
-        r = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
-        r = r.astype(int)
-
-        radial_profile = np.zeros(num_bins)
-        for i in range(num_bins):
-            mask = (r >= i * (r.max() / num_bins)) & (r < (i + 1) * (r.max() / num_bins))
-            radial_profile[i] = magnitude_spectrum[mask].mean() if np.any(mask) else 0
-
-        return radial_profile
-
-
-
-    def get_fft_features(self):
+    def fft_measures(self):
+        '''
+        Compute the FFT features for all images in the dataset.
+        
+        '''
         features_array = []
-        for index, row in self.images.iterrows():
-            features = self.fft_texture_features(row['image_path'])
-            radial = self.fft_radial_profile(row['image_path'], num_bins=3)
-            features = np.concatenate((features, radial))
+        for img_path in self.images['image_path']:
+            features = self.fft_texture_features(img_path)
             features_array.append(features)
         
         
-        df_fft = pd.DataFrame(features_array, columns=['fft_low', 'fft_mid', 'fft_high','radial_bin1','radial_bin2','radial_bin3'])
+        df_fft = pd.DataFrame(features_array, columns=['fft_low', 'fft_mid', 'fft_high'])
         
         df_fft['class'] = self.images['class'].values
         df_fft['image_path'] = self.images['image_path'].values
+        
+        
+        self.images = self.images.merge(df_fft, on=['class', 'image_path'])
+
+        
         return df_fft
 
     
-    def haralick_features(self,image_path,get_embeddings=False):
-        
+    def haralick_features(self,image_path):
+        '''
+        Auxiliary function to calculate the Haralick texture features for a give image. 
+        '''
         
         img = self.load_image_gs(image_path)
         
         
         img = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
 
-        if get_embeddings:
-            img = np.stack([img]*3, axis=-1)
-            img = self.get_feature_embeddings(img).mean(axis=2).astype(np.uint8)
 
         # Compute GLCM at multiple angles/distances
         glcm = graycomatrix(img, distances=[1], angles=[0, np.pi/4, np.pi/2, 3*np.pi/4],
                             symmetric=True, normed=True)
         
+        labels = ('contrast', 'correlation', 'energy', 'homogeneity','entropy')
         features = []
-        for prop in ('contrast', 'correlation', 'energy', 'homogeneity','entropy'):
+        for prop in labels:
             vals = graycoprops(glcm, prop)
-            features.extend(vals.mean(axis=1))  # average over angles
+            features.append(vals.mean())
 
         return np.array(features)
     
-    def get_haralick_features(self,get_embeddings=False):
+    def haralick_measures(self):
 
+        '''
+        Compute the Haralick texture features for all images in the dataset.
         
+        '''
 
         features_array = []
-        for index, row in self.images.iterrows():
-            features = self.haralick_features(row['image_path'],get_embeddings=get_embeddings)
+        for img_path in self.images['image_path']:
+            features = self.haralick_features(img_path)
             features_array.append(features)
         
         scaler = MinMaxScaler()
-        df_haralick = pd.DataFrame(scaler.fit_transform(features_array), columns=['contrast', 'correlation', 'energy', 'homogeneity','entropy'])
+        df_haralick = pd.DataFrame(scaler.fit_transform(features_array), columns=['contrast_haralick', 'correlation_haralick', 'energy_haralick', 'homogeneity_haralick','entropy_haralick'])
         
         df_haralick['class'] = self.images['class'].values
         df_haralick['image_path'] = self.images['image_path'].values
+        
+        #add the haralick features to the self.images DataFrame
+        self.images = self.images.merge(df_haralick, on=['class', 'image_path'])
+        
         return df_haralick
     
     
@@ -1172,6 +1173,51 @@ class ImageComplexity:
             m_sep = np.max(np.real(eigenvalues))
             return m_sep
             
+    def compute_m_var(self, S_w_hat, num_classes, dim):
+        """
+        Auxiliary function to compute M_var based on the within-class scatter matrix.
+        """
+        
+        eigenvalues = np.linalg.eigvalsh(S_w_hat)
+        lambda_min = np.min(eigenvalues)
+        
+        m_var = lambda_min / (num_classes * dim)
+    
+        return m_var
+
+    def m_var_measure(self,emb_type='efficient_net', layer_index=-1, reduction_type=None, reduction_method=None, n_components=10):
+        '''
+        Compute the M_var measure of class variability in the embedding space.
+
+        M_var is calculated using the normalized within-class scatter matrix (S_w_hat) in the embedding space, which captures the variability of samples within each class. 
+        A lower M_var value indicates that samples within the same class are more tightly clustered together, suggesting better class separability.
+
+        Parameters:
+        - emb_type (str): The type of embeddings to use for the calculation.
+        - layer_index (int): The index of the layer from which to extract embeddings. If -1 is specified, the final layer embeddings will be used.
+        - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating M_var. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
+        - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
+        - n_components (int): The number of components to use for dimensionality reduction if reduction_type is specified. Default is 10.
+        Returns:
+        - float: The calculated M_var value representing class separability in the embedding space.
+        '''
+        embs = self.embed_images(emb_type=emb_type, layer_index=layer_index)
+
+        if(embs is None):
+            return None
+
+        if(reduction_type is not None):
+            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_components=n_components)
+            self.feature_embeddings = embs
+        
+
+        S_w_hat, S_b_hat = self.compute_normalized_matrices(embs, self.images['class'].values)
+        m_var = self.compute_m_var(S_w_hat, len(np.unique(self.images['class'].values)), embs.shape[1])
+        
+        layer_index_str = str(layer_index) if layer_index >= 0 else "final" 
+
+        self.overlap_measures_dic['m_var_' + emb_type + '_layer' + str(layer_index_str)] = m_var
+        return m_var
 
 
     def m_sep_measure(self,emb_type='efficient_net', layer_index=-1, reduction_type=None, reduction_method=None, n_components=10):
@@ -1191,11 +1237,11 @@ class ImageComplexity:
         '''
         embs = self.embed_images(emb_type=emb_type, layer_index=layer_index)
 
-        if embs is None:
+        if(embs is None):
             return None
 
-        if reduction_type is not None:
-            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_compoments=n_components)
+        if(reduction_type is not None):
+            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_components=n_components)
             self.feature_embeddings = embs
         
 
@@ -1227,11 +1273,11 @@ class ImageComplexity:
         '''
 
         embs = self.embed_images(emb_type=emb_type, layer_index=layer_index)
-        if embs is None:
+        if(embs is None):
             return None
         
-        if reduction_type is not None:
-            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_compoments=2)
+        if(reduction_type is not None):
+            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_components=2)
             self.feature_embeddings = embs
     
         
@@ -1255,7 +1301,7 @@ class ImageComplexity:
 
     def knn_density_estimation(self, query_points, reference_points,k_neighbors=5):
 
-        if len(reference_points) < k_neighbors:
+        if(len(reference_points) < k_neighbors):
             k = len(reference_points)
         else:
             k = k_neighbors
@@ -1267,7 +1313,7 @@ class ImageComplexity:
         
         d = reference_points.shape[1]
         
-        volumes = (2 * distances[:, -1]) ** d  
+        volumes = (distances[:, -1]*2) ** d  
         volumes = np.maximum(volumes, 1e-10)
         
         n_ref = len(reference_points)
@@ -1314,13 +1360,13 @@ class ImageComplexity:
         print("Computing adjacency matrix W...")
         for i in range(size):
             for j in range(size):
-                if i == j:
+                if(i == j):
                     adjacency_matrix_W[i, j] = 1.0  
                 else:
                     numerator = np.sum(np.abs(similarity_matrix_S[i, :] - similarity_matrix_S[j, :]))
                     denominator = np.sum(np.abs(similarity_matrix_S[i, :] + similarity_matrix_S[j, :]))
                     
-                    if denominator == 0:
+                    if(denominator == 0):
                         adjacency_matrix_W[i, j] = 0.0
                     else:
                         adjacency_matrix_W[i, j] = 1.0 - (numerator / denominator)
@@ -1354,17 +1400,22 @@ class ImageComplexity:
 
     def compute_csg_complexity(self, eigenvalues):
         '''
-        Auxiliary function to compute the CSG complexity score based on the eigenvalues of the graph.
+        Auxiliary function to compute the CSG complexity measure based on the Laplacian eigenvalues.
+        
+        Parameters:
+        - eigenvalues (np.ndarray): Sorted eigenvalues of the Laplacian (ascending, λ0 = 0).
+        Returns:
+        - float: CSG complexity measure.
         '''
 
 
-        eig_size = len(eigenvalues)
+        n = len(eigenvalues)
+        if(n < 2):
+            return 0
         
-        
-        normalized_eigengaps = np.zeros(eig_size-1)
-        for i in range(eig_size-1):
-            delta_lambda = eigenvalues[i+1] - eigenvalues[i]
-            normalized_eigengaps[i] = delta_lambda / (eig_size - i)
+        normalized_eigengaps = np.zeros(n-1)
+        for i in range(n-1):
+            normalized_eigengaps[i] = (eigenvalues[i+1] - eigenvalues[i]) / (n - i)
         
         
         cumulative_max = np.zeros_like(normalized_eigengaps)
@@ -1374,16 +1425,103 @@ class ImageComplexity:
             cumulative_max[i] = current_max
         
        
-        csg_score = np.sum(cumulative_max)
+        csg = np.sum(cumulative_max)
+    
+        return csg
+    
+
+    def compute_AULS_complexity(self, eigenvalues):
+        """
+        Auxiliary function to compute the AULS complexity measure based on the Laplacian eigenvalues.
         
+        Parameters:
+        - eigenvalues (np.ndarray): Sorted eigenvalues of the Laplacian (ascending, λ0 = 0).
+
+        Returns:
+        - float: AULS complexity measure.
+        """
+        n = len(eigenvalues)
+        if(n < 2):
+            return 0
+
+        normalized_gaps = np.zeros(n - 1)
+        for i in range(n - 1):
+            normalized_gaps[i] = (eigenvalues[i + 1] - eigenvalues[i]) / (n - i)
+
         
-        return csg_score
+        auls = np.sum(normalized_gaps)
+        return auls
 
 
+    def compute_cmsAULS_complexity(self, eigenvalues):
+        """
+        Auxiliary function to compute the cmsAULS complexity measure based on the Laplacian eigenvalues.
+        
+        Parameters:
+        - eigenvalues (np.ndarray): Sorted eigenvalues of the Laplacian (ascending, λ0 = 0).
+
+        Returns:
+        - float: cmsAULS complexity measure.
+        """
+
+        n = len(eigenvalues)
+        if(n < 2):
+            return 0
+
+        normalized_eigengaps = np.zeros(n - 1)
+        for i in range(n - 1):
+        
+            normalized_eigengaps[i] = (eigenvalues[i + 1] ** 2 - eigenvalues[i] ** 2) / (2 * (n - i))
+
+        cumulative_max = np.zeros_like(normalized_eigengaps)
+        current_max = 0
+        for i in range(len(normalized_eigengaps)):
+            current_max = max(current_max, normalized_eigengaps[i])
+            cumulative_max[i] = current_max
+        
+        cmsAULS = np.sum(cumulative_max)
+        return cmsAULS
 
 
+    def auls_measure(self, layer_index=-1,emb_type='efficient_net',n_samples=50,  reduction_type=None,reduction_method=None,n_components=10):
+        '''
+        Calculate the AULS complexity measure based on the spectrum of the graph. 
+        
+        Parameters:
+        - layer_index (int): The index of the layer from which to extract embeddings. If -1 is specified, the final layer embeddings will be used.
+        - emb_type (str): The type of embeddings to use for the calculation.
+        - n_samples (int): The number of samples to use for the Monte Carlo estimation of pairwise similarities.
+        - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating the CSG measure. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
+        - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
+        - n_components (int): The number of components to keep if dimensionality reduction is applied. Only used if reduction_type is not None.
+        Returns:
+        - float: The calculated AULS complexity score for the dataset based on the specified embedding
+        '''
+        
+        embs = self.embed_images(emb_type=emb_type, layer_index=layer_index)
+        if(embs is None):
+            return None
 
-    def csg_measure(self, layer_index=-1,emb_type='efficient_net',n_samples=50,  reduction_type=None,reduction_method=None,n_compoments=10):
+        if(reduction_type is not None):
+            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_components=n_components)
+            self.feature_embeddings = embs
+
+        similarity_matrix_S = self.compute_similarity_matrix_S(embs, n_samples=n_samples)
+        
+        W = self.compute_adjacency_matrix_W(similarity_matrix_S)
+        L, D = self.compute_laplacian_matrix_L(W)
+        eigenvalues, eigenvectors = self.compute_spectrum(L)
+
+        auls = self.compute_AULS_complexity(eigenvalues)
+        measure_name = 'auls_'
+        
+        layer_index_str = str(layer_index) if layer_index >= 0 else "final" 
+        self.overlap_measures_dic[measure_name + emb_type + '_layer' + str(layer_index_str)] = auls
+
+        return auls
+
+
+    def csg_measure(self, layer_index=-1,emb_type='efficient_net',n_samples=50,  reduction_type=None,reduction_method=None,n_components=10,auls=False):
         '''
         Calculate the CSG complexity measure based on the spectrum of the graph. 
         
@@ -1393,17 +1531,18 @@ class ImageComplexity:
         - n_samples (int): The number of samples to use for the Monte Carlo estimation of pairwise similarities.
         - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating the CSG measure. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
         - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
-        - n_compoments (int): The number of components to keep if dimensionality reduction is applied. Only used if reduction_type is not None.
+        - n_components (int): The number of components to keep if dimensionality reduction is applied. Only used if reduction_type is not None.
+        - auls (bool): Whether to calculate the cmsAULS complexity measure instead of CSG. 
         Returns:
-        - float: The calculated CSG complexity score for the dataset based on the specified embedding
+        - float: The calculated CSG or csmAULS complexity score for the dataset based on the specified embedding
         '''
         
         embs = self.embed_images(emb_type=emb_type, layer_index=layer_index)
-        if embs is None:
+        if(embs is None):
             return None
 
-        if reduction_type is not None:
-            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_compoments=n_compoments)
+        if(reduction_type is not None):
+            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_components=n_components)
             self.feature_embeddings = embs
 
         similarity_matrix_S = self.compute_similarity_matrix_S(embs, n_samples=n_samples)
@@ -1412,13 +1551,17 @@ class ImageComplexity:
         L, D = self.compute_laplacian_matrix_L(W)
         eigenvalues, eigenvectors = self.compute_spectrum(L)
 
-        csg_score = self.compute_csg_complexity(eigenvalues)
-
+        if(auls):
+            measure = self.compute_cmsAULS_complexity(eigenvalues)
+            measure_name = 'cmsAULS_'
+        else:
+            measure = self.compute_csg_complexity(eigenvalues)
+            measure_name = 'csg_' 
         
         layer_index_str = str(layer_index) if layer_index >= 0 else "final" 
-        self.overlap_measures_dic['csg_' + emb_type + '_layer' + str(layer_index_str)] = csg_score
+        self.overlap_measures_dic[measure_name + emb_type + '_layer' + str(layer_index_str)] = measure
 
-        return csg_score
+        return measure
         
     def plot_overlap_measures(self,cls='average'):
         '''
@@ -1435,7 +1578,7 @@ class ImageComplexity:
         values = list(self.overlap_measures_dic.values())
 
         for i in range(len(values)):
-            if isinstance(values[i], (list, np.ndarray)):
+            if(isinstance(values[i], (list, np.ndarray))):
                 if(cls=='average'):
                     values[i] = np.mean(values[i])
                 else:
@@ -1483,7 +1626,7 @@ class ImageComplexity:
             embeddings = embs.flatten().reshape(len(self.images), -1)
         else:
             #check if embeddings are already calculated
-            if not hasattr(self, 'feature_embeddings'):
+            if(not hasattr(self, 'feature_embeddings')):
                 
                 embeddings = self.get_feature_embeddings_all().flatten().reshape(len(self.images), -1)
 
@@ -1551,3 +1694,27 @@ class ImageComplexity:
     
         plt.show()
     
+#add main function to test the class
+if __name__ == "__main__":
+    dataset = "shapes_dataset"
+    folder = "./" + dataset +  "/train/"
+
+    classes = ["Circle","Square","Triangle"]
+
+    complexity_train = ImageComplexity(folder,keep_classes=classes,number_per_class=200)
+    complexity_train.haralick_measures()
+    print(complexity_train.images.head())
+    
+    
+    cmsAULS = complexity_train.csg_measure(emb_type="efficient_net",n_samples=50, reduction_type='pca',n_components=10,auls=True)
+    csg = complexity_train.csg_measure(emb_type="efficient_net",n_samples=50, reduction_type='pca',n_components=10,auls=False)
+    auls = complexity_train.auls_measure(emb_type="efficient_net",n_samples=50, reduction_type='pca',n_components=10)   
+    
+    m_sep = complexity_train.m_sep_measure(emb_type="efficient_net", reduction_type='pca',n_components=10)
+    m_var = complexity_train.m_var_measure(emb_type="efficient_net", reduction_type='pca',n_components=10)
+    
+    print("CSG measure:", csg)
+    print("cmsAULS measure:", cmsAULS)
+    print("AULS measure:", auls)
+    print("M_sep measure:", m_sep)
+    print("M_var measure:", m_var)
