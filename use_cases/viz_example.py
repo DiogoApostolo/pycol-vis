@@ -17,6 +17,14 @@ Visualization use case example. In this example we embed the images using an eff
 Furthermore we use multiple overlap measures and plot a bar plot to visualize the complexity of the dataset according to different measures.
 
 Methods to visualize the metrics per class are also available, allowing the user to identify which classes are more complex and which are less complex according to a specific metric.
+
+Download the dataset at https://data.mendeley.com/datasets/wzr2yv7r53/1
+
+OR
+
+Use the shapes_dataset.zip in this repo
+
+
 '''
 
 dataset = "shapes_dataset"

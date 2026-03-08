@@ -13,6 +13,12 @@ import matplotlib.pyplot as plt
 '''
 Use case example of how to use the CSG measure to evaluate the complexity of the feature embeddings at different layers of a CNN.
 
+Download the dataset at https://www.kaggle.com/datasets/marquis03/fruits-100?select=train
+
+OR
+
+Use the Fruit_dataset.zip in this repo
+
 '''
 
 

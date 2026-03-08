@@ -14,6 +14,9 @@ Model Selection use case example. In this example we embed the images using an e
 
 Using the Overalp measures we can identify the difficulty of the classification task and then select a model that is more likely to perform well on the task.
 
+Download the Dataset in https://www.kaggle.com/datasets/prashant268/chest-xray-covid19-pneumonia
+
+
 '''
 
 

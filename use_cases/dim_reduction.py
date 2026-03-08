@@ -21,6 +21,8 @@ A user can indentify is a reduction method will be beneficial for the classifica
 If the CSG measure decreases after the reduction, it is likely that the reduction has helped to improve class separability in the embedding space, which can lead to better classification performance.
 Contrarily, if the CSG measure increases after the reduction, it may indicate that the reduction has removed important information from the embeddings, which can lead to worse classification performance.
 
+Download the Dataset in https://www.kaggle.com/datasets/prashant268/chest-xray-covid19-pneumonia
+
 '''
 
 

@@ -17,6 +17,14 @@ We then embed the images, reduce the dimensionality of the embeddings and train 
 
 Change the N_SAMPLES_PER_CLASS variable to sample more or less images per class.
 
+Download the dataset at https://data.mendeley.com/datasets/wzr2yv7r53/1
+
+OR
+
+Use the shapes_dataset.zip in this repo
+
+
+
 '''
 
 dataset = "shapes_dataset"
