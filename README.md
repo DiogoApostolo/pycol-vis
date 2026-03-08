@@ -29,9 +29,9 @@ The following Table shows the measures implemented in our package divided by fam
 | Intrinsic | Entropy                                                | H           | 0–1                  | \cite{image_complexity1} |
 | Intrinsic | Canny Edge Density                                     | CED         | 0–1                  | \cite{image_complexity3} |
 | Intrinsic | Sobel Edge Density                                     | SED         | 0–1                  | \cite{image_complexity3} |
-| Intrinsic | Color Average                                          | Color Avg.  | [0–1, 0–1, 0–1]      | \cite{image_complexity1} |
+| Intrinsic | Color Average/STD                                      | Color Avg.  | [0–1, 0–1, 0–1]      | \cite{image_complexity1} |
 | Intrinsic | Unique Colors                                          | #Colors     | 1–∞                  | \cite{image_complexity3} |
-| Intrinsic | Zipf Rank                                              | Zipf        | 0–1                  | \cite{image_complexity5} |
+| Intrinsic | Zipf Rank/Difference                                   | Zipf        | 0–1                  | \cite{image_complexity5} |
 | Intrinsic | Haralick Features                                      | haralick    | —                    | -  |
 | Intrinsic | FFT Features                                           | fft         | —                    | — |
 
@@ -45,15 +45,15 @@ The following Table shows the measures implemented in our package divided by fam
 
 
 #### Instrinsic:
-* **JPEG Compression Ratio:**
+* **JPEG Compression Ratio:** The compression Ratio Achieved by compressing an image to JPEG format (quality is defined as a parameter)
 * **Fractal Compression:**
-* **Entropy**
-* **Canny/Sobel Edge Density:**
-* **Color Average:**
-* **Unique Colors:**
-* **Zipf Rank:**
-* **Haralick Features:**
-* **FFT Features:**
+* **Entropy:** The Shannon Entropy of a given image
+* **Canny/Sobel Edge Density:** The density of edges of a given image, calculated used either Canny or Sobel Filters. More edge density indicates higher complexity.
+* **Color Average/STD:** The average and standard deviation of the colors of a given image, for each individual channel of the image. Image can be converted into different formats.
+* **Unique Colors:** The unique colors present in a given image. Image is first quantized to reduce the color space, leaving only the most relevant colors.
+* **Zipf Rank/Difference:** Complexity based on Zipf-like statistics and Zipf's Law, which claims that in many natural processes the frequency of something is inversely proportional to its rank. 
+* **Haralick Features:** Group of of measures based on haralick features obtained using graycomatrix and graycoprops.
+* **FFT Features:** Group of of measures based on fft features. Image is converted to frequency space and the energy in low, mid and high frequency bands is calculated as well as the radial profile. 
 
 
 
