@@ -10,8 +10,8 @@ The seminal work of [1] has leveraged a set of measures devoted to estimating th
 
 The lack of dedicated image measures and the absence of supporting software, have created a significant gap in our understanding of image complexity, despite the importance of image data in areas such as healthcare, security, remote sensing, and autonomous systems. Our work aims to address this gap directly by introducing a comprehensive package for this purpose. In particular, the ImComPy package distinguishes itself by categorizing image metrics into two distinct complexity families: 
 
-* Intrinsic: comprised of metrics to quantify the difficulty of individual images, based image properties such as color, entropy and edge density.
-* Overlap: focusing on class separability and complexity between classes, of a binary or multiclass image dataset.
+* **Intrinsic**: comprised of metrics to quantify the difficulty of individual images, based image properties such as color, entropy and edge density.
+* **Overlap**: focusing on class separability and complexity between classes, of a binary or multiclass image dataset.
 
 ## Implemented Measures
 
@@ -73,9 +73,21 @@ Various datasets are used in the use cases presented in this page. Below is a li
 * [MNIST](https://www.kaggle.com/datasets/hojjatk/mnist-dataset): Handwritten digits
 * [Fashion MNIST](https://www.kaggle.com/datasets/zalando-research/fashionmnist): A dataset of 28x28 pixel images of 10 fashion categories (e.g., shirts, shoes, bags)
 
-## Use Cases
+
+### Basic Usage
 
 
+
+### Use Cases
+
+A collection of Use Cases is shown are provided in the use_cases folder. The provided use cases use the datasets described previously and display how our package can be used in practice to extract valuable insights from image datasets. 
+
+In particular de use case folder includes the following files:
+
+* **model_selection.py:** A Use Case showing how the overlap measures in our package can be used to inform model selection
+* **sample_selection.py:** A Use Case showing how the intrinsic measures can be used to reduce the dataset size, selecting only the most relevant samples
+* **feature_selection.py:** A Use Case showing how the overlap measures can be used to reduce the embedding feature space, without losing classfication performance.
+* **viz_options.py:** A Use Case displaying the different visualization options present in our package
 
 ## References
 
