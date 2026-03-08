@@ -110,6 +110,46 @@ comp.csg_measure(
 
 ```
 
+### Visualization Example
+
+Our package offers the user diverse methods to visualize dataset complexity.
+
+This example shows how the measured overlap complexity can easlity shown in a bar plot. The *plot_overlap_measures* function automatically 
+graps all overlap measures calculated so far and displays them to the user.
+
+```python
+
+#Load Dataset
+
+dataset = "shapes_dataset"
+folder = "./" + dataset +  "/train/"
+classes = ["Circle","Square","Triangle"]
+
+
+complexity = ImageComplexity(folder,keep_classes=classes,number_per_class=200)
+
+# Measure Complexity
+complexity.csg_measure(emb_type="efficient_net",n_samples=50, reduction_type='pca')
+complexity.tabular_measure(emb_type='efficient_net',measure='kdn',reduction_type='pca')
+complexity.m_sep_measure(emb_type='efficient_net', reduction_type='pca')
+
+#Plot Bar plot with measured complexity
+complexity.plot_overlap_measures()
+```
+
+![Bar Plot of Overlap Measures](images/bar_overlap.png)
+
+
+Continuing from the previous example, a user might also want to visualize how the dataset was embeded. Using the *plot_tsne* method our package
+uses t-SNE to show the user a 2D projection of the embeded dataset.
+
+```python
+
+complexity_train.plot_tsne(embs=complexity_train.feature_embeddings)
+
+```
+![Bar Plot of Overlap Measures](images/emb.png)
+
 
 ### Use Cases
 
