@@ -63,7 +63,21 @@ All packages required to run ImComPy are listed in the requirements.txt file fou
 
 `pip install -r requirements.txt`
 
+## Datasets
+
+Various datasets are used in the use cases presented in this page. Below is a list of some of the datasets used to test our package which are also necessary to run the use case files:
+
+Shapes dataset:
+COVID Dataset:
+Fruits Dataset:
+MNIST:
+MNIST-Fashion:
+
 ## Use Cases
+
+
+
+
 
 
 
