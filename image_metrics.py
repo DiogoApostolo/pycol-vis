@@ -1,13 +1,10 @@
 import cv2
-from matplotlib import image
-from matplotlib.widgets import EllipseSelector
 import numpy as np
 import os
 import pandas as pd
 from scipy import stats
 
-from skimage.metrics import structural_similarity as ssim
-from scipy.stats import skew
+
 from skimage.feature import graycomatrix, graycoprops
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
@@ -15,13 +12,6 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
-import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Input
-from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, Conv2D, MaxPooling2D
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.callbacks import EarlyStopping
 
 
 from pycol_complexity import complexity as pycol_complexity
@@ -29,12 +19,6 @@ from pycol_complexity import complexity as pycol_complexity
 from scipy.linalg import eigh
 from embedding_models import ConvAutoencoder, EfficientNetLite0EmbeddingModel, MobileNetV3EmbeddingModel, CNNEmbeddingModel
 
-
-from sklearn.cluster import KMeans
-from sklearn.metrics import pairwise_distances_argmin_min
-
-
-from classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
 
 class ImageComplexity:
     def __init__(self, folder, keep_classes = 'all', number_per_class= -1, use_keras_dataset=False):
@@ -383,7 +367,7 @@ class ImageComplexity:
             self.reduction_method = reduction_method
 
         elif(method=='custom'):
-            reduced_embs = custom_method(emb)
+            reduced_embs = custom_method.fit_transform(emb)
         
         
         return reduced_embs
@@ -742,45 +726,39 @@ class ImageComplexity:
         ratios = []
         rmses = []
 
-
         for name in self.images['image_path']:
-            original_image = self.select_channel(name, channel=channel)
-            
 
-            if(is_edge_processing == True):
-                
-                original_image = self.edge_processing(original_image, method=edge_method, direction= direction)
-                
-            #convert
+            # select channel
+            original_image = self.select_channel(name, channel=channel)
+
+            # optional edge processing
+            if is_edge_processing:
+                original_image = self.edge_processing(original_image,method=edge_method,direction=direction)
+
             encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
             result, encoded_img = cv2.imencode('.jpg', original_image, encode_param)
-            
-            if(channel=='all'):
+
+            if(not result):
+                raise RuntimeError("JPEG encoding failed")
+
+            if(channel == 'all'):
                 jpeg_image = cv2.imdecode(encoded_img, cv2.IMREAD_COLOR)
-            else:   
+            else:
                 jpeg_image = cv2.imdecode(encoded_img, cv2.IMREAD_GRAYSCALE)
 
-            #save original and compressed images temporarily to calculate sizes for compression ratio
-            cv2.imwrite("./temp.png", original_image)
-            cv2.imwrite("./temp.jpg", original_image, [cv2.IMWRITE_JPEG_QUALITY, quality])
-            
-            original_size = os.path.getsize("./temp.png")
-            jpeg_size = os.path.getsize("./temp.jpg")
+            jpeg_size = len(encoded_img)  
+            original_size = original_image.size * original_image.itemsize  
 
-            #compression ratio
-            compression_ratio =  jpeg_size / original_size
-
+            compression_ratio = jpeg_size / original_size
             ratios.append(compression_ratio)
 
-            #root mean square error between original and compressed image
             diff = (original_image.astype(np.float32) - jpeg_image.astype(np.float32)) ** 2
+
             mse = np.mean(diff)
             rmse = np.sqrt(mse)
 
             rmses.append(rmse)
 
-            
-           
         self.images['jpeg_compression_ratio'] = ratios
         self.images['jpeg_rmse'] = rmses
     
@@ -1196,7 +1174,7 @@ class ImageComplexity:
             
 
 
-    def m_sep_measure(self,emb_type='CNN', layer_index=-1, reduction_type=None, reduction_method=None):
+    def m_sep_measure(self,emb_type='efficient_net', layer_index=-1, reduction_type=None, reduction_method=None, n_components=10):
         '''
         Compute the M_sep measure of class separability in the embedding space.
 
@@ -1207,7 +1185,7 @@ class ImageComplexity:
         - layer_index (int): The index of the layer from which to extract embeddings. If -1 is specified, the final layer embeddings will be used.
         - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating M_sep. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
         - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
-
+        - n_components (int): The number of components to use for dimensionality reduction if reduction_type is specified. Default is 10.
         Returns:
         - float: The calculated M_sep value representing class separability in the embedding space.
         '''
@@ -1217,7 +1195,7 @@ class ImageComplexity:
             return None
 
         if reduction_type is not None:
-            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_compoments=2)
+            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_compoments=n_components)
             self.feature_embeddings = embs
         
 
@@ -1233,7 +1211,7 @@ class ImageComplexity:
 
     
 
-    def tabular_measure(self, layer_index=-1, reduction_type=None, reduction_method=None, emb_type='CNN', measure='kdn'):
+    def tabular_measure(self, layer_index=-1, reduction_type=None, reduction_method=None, emb_type='efficient_net', measure='kdn', n_components=10):
         '''
         Calculate overlap measures using the pycol complexity libray.
 
@@ -1245,6 +1223,7 @@ class ImageComplexity:
         - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
         - emb_type (str): The type of embeddings to use for the calculation. 
         - measure (str): The specific overlap measure to calculate. Options are 'n2', 'kdn', or 'lsc'. Each measure captures different aspects of class overlap and complexity in the feature space.
+        - n_components (int): The number of components to use for dimensionality reduction if reduction_type is specified. Default is 2.
         '''
 
         embs = self.embed_images(emb_type=emb_type, layer_index=layer_index)
@@ -1404,7 +1383,7 @@ class ImageComplexity:
 
 
 
-    def csg_measure(self, layer_index=-1,emb_type='CNN',n_samples=50,  reduction_type=None,reduction_method=None):
+    def csg_measure(self, layer_index=-1,emb_type='efficient_net',n_samples=50,  reduction_type=None,reduction_method=None,n_compoments=10):
         '''
         Calculate the CSG complexity measure based on the spectrum of the graph. 
         
@@ -1414,7 +1393,7 @@ class ImageComplexity:
         - n_samples (int): The number of samples to use for the Monte Carlo estimation of pairwise similarities.
         - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating the CSG measure. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
         - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
-
+        - n_compoments (int): The number of components to keep if dimensionality reduction is applied. Only used if reduction_type is not None.
         Returns:
         - float: The calculated CSG complexity score for the dataset based on the specified embedding
         '''
@@ -1424,7 +1403,7 @@ class ImageComplexity:
             return None
 
         if reduction_type is not None:
-            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_compoments=2)
+            embs = self.dim_reduction(embs,method=reduction_type,custom_method=reduction_method,n_compoments=n_compoments)
             self.feature_embeddings = embs
 
         similarity_matrix_S = self.compute_similarity_matrix_S(embs, n_samples=n_samples)
@@ -1572,237 +1551,3 @@ class ImageComplexity:
     
         plt.show()
     
-    
-    
-    
-
-        
-
-
-dataset = "shapes_dataset"
-folder = "./" + dataset +  "/train/"
-
-classes = ["Circle","Square"]
-
-complexity = ImageComplexity(folder,keep_classes=classes,number_per_class=300)
-
-kDN = complexity.tabular_measure(emb_type='efficient_net',measure='kdn',reduction_type='pca')
-
-print(kDN)
-
-
-
- #REDUCE DATASET SIZE EXAMPLE
-'''
-dataset = "shapes_dataset"
-folder = "./" + dataset +  "/train/"
-
-classes = ["Circle","Square","Triangle"]
-
-complexity_train = ImageComplexity(folder,keep_classes=classes)
-
-complexity_train.jpeg_compression_ratio()
-complexity_train.sample_dataset(n_samples_per_class=5000,sample_type='jpeg_compression')
-
-complexity_train.embed_images(emb_type='efficient_net')
-complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_compoments=10)
-reduction_method = complexity_train.reduction_method.transform
-
-
-
-X_train = complexity_train.feature_embeddings
-y_train = complexity_train.images['class'].values
-
-print(complexity_train.images.shape)
-
-folder = "./" + dataset +  "/test/"
-
-complexity_test = ImageComplexity(folder,keep_classes=classes)
-complexity_test.embed_images(emb_type='efficient_net')
-complexity_test.feature_embeddings = complexity_test.dim_reduction(complexity_test.feature_embeddings,method='custom',custom_method=reduction_method)
-
-
-X_test = complexity_test.feature_embeddings
-y_test = complexity_test.images['class'].values
-
-accuracy_xgb = xgb_classifier(X_train,y_train,X_test,y_test)
-print("XGB Accuracy:", accuracy_xgb)
-'''
-
-
-#------------------------- Viz Examples -------------------------------------
-'''
-
-complexity_train.csg_measure(emb_type="efficient_net",n_samples=50, reduction_type='pca')
-complexity_train.tabular_measure(emb_type='efficient_net',measure='kdn',reduction_type='pca')
-complexity_train.compute_m_sep(emb_type='efficient_net', reduction_type='pca')
-complexity_train.plot_overlap_measures()
-
-complexity_train.plot_tsne(embs=complexity_train.feature_embeddings)
-
-
-#complexity_train.calculate_energy()
-
-
-#complexity_train.jpeg_compression_ratio()
-#complexity_train.calculate_entropy()
-#complexity_train.edge_density_canny()
-
-#complexity_train.visualize_metrics_per_class('entropy')
-
-#complexity_train.sample_dataset(n_samples_per_class=5000,sample_type='jpeg_compression')
-
-'''
-
-
-'''
-complexity_train.embed_images(emb_type='efficient_net')
-
-complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_compoments=10)
-reduction_method = complexity_train.reduction_method.transform
-
-
-
-X_train = complexity_train.feature_embeddings
-y_train = complexity_train.images['class'].values
-
-print(complexity_train.images.shape)
-
-folder = "./" + dataset +  "/test/"
-
-complexity_test = ImageComplexity(folder,keep_classes=classes)
-complexity_test.embed_images(emb_type='efficient_net')
-complexity_test.feature_embeddings = complexity_test.dim_reduction(complexity_test.feature_embeddings,method='custom',custom_method=reduction_method)
-
-
-X_test = complexity_test.feature_embeddings
-y_test = complexity_test.images['class'].values
-
-accuracy_xgb = xgb_classifier(X_train,y_train,X_test,y_test)
-print("XGB Accuracy:", accuracy_xgb)
-'''
-#________________________________________________________
-
-'''
-#Example of usage
-dataset = "CovidDataset"
-folder = "./" + dataset +  "/train/"
-
-#classes = ["Circle","Square","Triangle"]
-classes = ["COVID19","PNEUMONIA"]
-
-depth = 1
-epochs = 1
-
-complexity_train = ImageComplexity(folder,keep_classes=classes,number_per_class=400)
-#complexity_train.define_feature_embedding_model(network_type="CNN",depth=depth)
-#complexity_train.train_model(epochs=epochs,network_type="CNN")
-metric_train = complexity_train.csg_measure(emb_type="efficient_net",n_samples=50, reduction_type='pca')
-
-X_train = complexity_train.feature_embeddings
-y_train = complexity_train.images['class'].values
-
-folder = "./" + dataset +  "/test/"
-complexity_test = ImageComplexity(folder,keep_classes=classes,number_per_class=400)
-
-#complexity_test.model_to_train = complexity_train.model_to_train
-#complexity_test.model_all_layers = complexity_train.model_all_layers
-#complexity_test.model = complexity_train.model
-
-reduction_method = complexity_train.reduction_method.transform
-metric_test = complexity_test.csg_measure(emb_type="efficient_net",n_samples=50, reduction_type='custom', reduction_method=reduction_method)
-
-
-
-
-X_test = complexity_test.feature_embeddings
-y_test = complexity_test.images['class'].values
-
-accuracy_svm = svm_classifier(X_train,y_train,X_test,y_test)
-accuracy_nn = nn_classifier(X_train,y_train,X_test,y_test)
-accuracy_knn = knn_classifier(X_train,y_train,X_test,y_test)
-accuracy_xgb = xgb_classifier(X_train,y_train,X_test,y_test)
-
-
-print("Train CSG Score:", metric_train)
-print("Test CSG Score:", metric_test)
-
-print("SVM Accuracy:", accuracy_svm)
-print("NN Accuracy:", accuracy_nn)
-print("KNN Accuracy:", accuracy_knn)
-print("XGB Accuracy:", accuracy_xgb)
-'''
-
-#_______________________________________________________
-
-'''
-complexity.get_hsv()
-complexity.sample_dataset(n_samples_per_class=100)
-'''
-
-
-'''
-dataset = "apple_v_banana"
-folder = "./" + dataset +  "/train/"
-projection = "CNN_random"
-layer = -1
-depth = 3
-epochs = 10
-'''
-
-
-'''
-dataset_array = ["apple_v_banana"]
-projection_array = ["CNN_tsne","CNN_random"]
-layer=-1
-depth_array = [2,3,4]
-epochs_array = [5,10,20]
-
-for dataset in dataset_array:
-    for projection in projection_array:
-        for depth in depth_array:
-            for epochs in epochs_array:
-                folder = "./" + dataset +  "/train/"
-
-                if(layer == -1):
-                    layer_name = "fin"
-                else:
-                    layer_name = str(layer)
-
-                complexity = ImageComplexity(folder)
-                complexity.define_feature_embedding_model(network_type="CNN",depth=depth)
-                complexity.train_model(epochs=epochs,network_type="CNN")
-
-                m_sep = complexity.csg_measure(emb_type=projection, layer_index=-1)
-
-
-
-                name = dataset + "-" + projection + "-l" + layer_name + "-e" + str(epochs) + "-d" + str(depth)
-                complexity.plot_tsne(complexity.feature_embeddings,save_image=True,name=name + ".png",folder="./plot_projection/")
-
-                #save complexity results
-                with open("./results/csg/" + name + "_complexity.txt", "w") as f:
-                    f.write(f"CSG Score: {m_sep['csg_score']}\n")
-                    f.write(f"Spectral Span: {m_sep['spectral_span']}\n")
-                    f.write(f"Spectral Gap: {m_sep['spectral_gap']}\n")
-                    f.write(f"Area Under Curve: {m_sep['area_under_curve']}\n")
-                    f.write(f"Max Eigengap: {m_sep['max_eigengap']}\n")
-                    f.write(f"Max Eigengap Position: {m_sep['max_eigengap_position']}\n")
-                    f.write(f"Normalized Max Eigengap: {m_sep['normalized_max_eigengap']}\n")
-                    f.write(f"Number of Classes: {m_sep['num_classes']}\n")
-'''
-
-
-#complexity = ImageComplexity("./CovidDataset/train/COVID19/COVID19(0).jpg")print("Sucessfuly loaded")
-
-
-'''
-for layer in range(1,len(complexity.model_all_layers)):
-    print(f"Computing complexity for layer {layer}...")
-    
-    #measure = complexity.csg_measure(layer_index=layer,emb_type='CNN_tsne')['csg_score']
-    measure = complexity.tabular_measure(layer_index=layer,measure='kdn',emb_type='CNN_tsne')
-    
-    layers_complexity.append(measure)
-'''
-
