@@ -67,11 +67,11 @@ All packages required to run ImComPy are listed in the requirements.txt file fou
 
 Various datasets are used in the use cases presented in this page. Below is a list of some of the datasets used to test our package which are also necessary to run the use case files:
 
-Shapes dataset:
-COVID Dataset:
-Fruits Dataset:
-MNIST:
-MNIST-Fashion:
+* [Shapes dataset](https://data.mendeley.com/datasets/wzr2yv7r53/1): Dataset is composed of 2D 9 geometric shapes, each shape is drawn randomly on a 200x200 RGB image.
+* COVID Dataset:
+* Fruits Dataset:
+* MNIST:
+* MNIST-Fashion:
 
 ## Use Cases
 
