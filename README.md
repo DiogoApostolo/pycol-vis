@@ -6,7 +6,7 @@ The Python Image Complexity Library (`ImComPy`) assembles a set of data complexi
 
 Dataset complexity poses a significant challenge in classification tasks, especially in real-world applications where a combination of factors such as class overlap, data imbalance, noise, and dimensionality can jeopardize a machine learning algorithm's performance. 
 
-The seminal work of [1] \cite{hoBasu} has leveraged a set of measures devoted to estimating the difficulty level of a tabular classification problem. However, since these complexity measures were designed for tabular datasets, they cannot be directly applied to images. Furthermore, while comprehensive software packages for complexity analysis exist for tabular data such as [pycol](https://github.com/DiogoApostolo/pycol/tree/new_main) , [dcol](https://github.com/nmacia/dcol) , [ECoL](https://github.com/lpfgarcia/ECoL), [ImbCoL](https://github.com/victorhb/ImbCoL), [SCoL](https://github.com/lpfgarcia/SCoL), and [mfe](https://github.com/rivolli/mfe) no equivalent, standardized toolkit exists for image datasets. 
+The seminal work of [1] has leveraged a set of measures devoted to estimating the difficulty level of a tabular classification problem. However, since these complexity measures were designed for tabular datasets, they cannot be directly applied to images. Furthermore, while comprehensive software packages for complexity analysis exist for tabular data such as [pycol](https://github.com/DiogoApostolo/pycol/tree/new_main) , [dcol](https://github.com/nmacia/dcol) , [ECoL](https://github.com/lpfgarcia/ECoL), [ImbCoL](https://github.com/victorhb/ImbCoL), [SCoL](https://github.com/lpfgarcia/SCoL), and [mfe](https://github.com/rivolli/mfe) no equivalent, standardized toolkit exists for image datasets. 
 
 The lack of dedicated image measures and the absence of supporting software, have created a significant gap in our understanding of image complexity, despite the importance of image data in areas such as healthcare, security, remote sensing, and autonomous systems. Our work aims to address this gap directly by introducing a comprehensive package for this purpose. In particular, the ImComPy package distinguishes itself by categorizing image metrics into two distinct complexity families: 
 
@@ -19,19 +19,19 @@ The following Table shows the measures implemented in our package divided by fam
 
 | Category  | Name                                                   | Acronym     | Range                | Reference |
 |-----------|--------------------------------------------------------|-------------|----------------------|-----------|
-| Overlap   | Cumulative Spectral Gradient                           | CSG         | 0–∞                  | [2] \cite{image_complexity2} |
-| Overlap   | Area Under Laplacian Spectrum                          | AULS        | 0–∞                  | [3] \cite{AugCSG} |
-| Overlap   | Cumulative Maximum Scaled Area Under Laplacian Spectrum| cmsAULS     | 0–∞                  | [3] \cite{AugCSG} |
-| Overlap   | Class Separability                                     | m-sep       | 0–1                  | [4] \cite{lda_measure} |
-| Overlap   | In-Class Variability                                   | m-var       | 0–1                  | [4] \cite{lda_measure} |
-| Intrinsic | JPEG Compression Ratio                                 | JPEG        | 0–1                  | [\cite{image_complexity5} |
-| Intrinsic | Fractal Compression                                    | Fractal     | 0–1                  | \cite{image_complexity5} |
-| Intrinsic | Entropy                                                | H           | 0–1                  | \cite{image_complexity1} |
-| Intrinsic | Canny Edge Density                                     | CED         | 0–1                  | \cite{image_complexity3} |
-| Intrinsic | Sobel Edge Density                                     | SED         | 0–1                  | \cite{image_complexity3} |
-| Intrinsic | Color Average/STD                                      | Color Avg.  | [0–1, 0–1, 0–1]      | \cite{image_complexity1} |
-| Intrinsic | Unique Colors                                          | #Colors     | 1–∞                  | \cite{image_complexity3} |
-| Intrinsic | Zipf Rank/Difference                                   | Zipf        | 0–1                  | \cite{image_complexity5} |
+| Overlap   | Cumulative Spectral Gradient                           | CSG         | 0–∞                  | [2]  |
+| Overlap   | Area Under Laplacian Spectrum                          | AULS        | 0–∞                  | [3]  |
+| Overlap   | Cumulative Maximum Scaled Area Under Laplacian Spectrum| cmsAULS     | 0–∞                  | [3]  |
+| Overlap   | Class Separability                                     | m-sep       | 0–1                  | [4]  |
+| Overlap   | In-Class Variability                                   | m-var       | 0–1                  | [4]  |
+| Intrinsic | JPEG Compression Ratio                                 | JPEG        | 0–1                  | [5]  |
+| Intrinsic | Fractal Compression                                    | Fractal     | 0–1                  | [5]  |
+| Intrinsic | Entropy                                                | H           | 0–1                  | [6]  |
+| Intrinsic | Canny Edge Density                                     | CED         | 0–1                  | [7]  |
+| Intrinsic | Sobel Edge Density                                     | SED         | 0–1                  | [7]  |
+| Intrinsic | Color Average/STD                                      | Color Avg.  | [0–1, 0–1, 0–1]      | [6]  |
+| Intrinsic | Unique Colors                                          | #Colors     | 1–∞                  | [7]  |
+| Intrinsic | Zipf Rank/Difference                                   | Zipf        | 0–1                  | [5]  |
 | Intrinsic | Haralick Features                                      | haralick    | —                    | -  |
 | Intrinsic | FFT Features                                           | fft         | —                    | — |
 
@@ -75,6 +75,42 @@ Various datasets are used in the use cases presented in this page. Below is a li
 
 ## Use Cases
 
+
+
+## References
+
+[1] Ho, T. K., & Basu, M. (2002).  
+Complexity Measures of Supervised Classification Problems.  
+IEEE Transactions on Pattern Analysis and Machine Intelligence, 24(3), 289–300.  
+https://doi.org/10.1109/34.990132
+
+[2] Branchaud-Charron, F., Achkar, A., & Jodoin, P.-M. (2019).  
+Spectral Metric for Dataset Complexity Assessment.  
+arXiv:1905.07299. https://arxiv.org/abs/1905.07299
+
+[3] Li, G., Togo, R., Ogawa, T., & Haseyama, M. (2022).  
+Dataset complexity assessment based on cumulative maximum scaled area under Laplacian spectrum.  
+Multimedia Tools and Applications, 81(22), 32287–32303.  
+https://doi.org/10.1007/s11042-022-13027-3
+
+[4] Cho, H., & Lee, S. (2021).  
+Data Quality Measures and Efficient Evaluation Algorithms for Large-Scale High-Dimensional Data.  
+Applied Sciences, 11(2), 472.  
+https://doi.org/10.3390/app11020472
+
+[5] Machado, P., Romero, J., Nadal, M., Santos, A., Correia, J., & Carballal, A. (2015).  
+Computerized measures of visual complexity.  
+Acta Psychologica, 160, 43–57.  
+https://doi.org/10.1016/j.actpsy.2015.06.005
+
+[6] Rahane, A. A., & Subramanian, A. (2020).  
+Measures of Complexity for Large Scale Image Datasets.  
+arXiv:2008.04431. https://arxiv.org/abs/2008.04431
+
+[7] Corchs, S. E., Ciocca, G., Bricolo, E., & Gasparini, F. (2016).  
+Predicting Complexity Perception of Real World Images.  
+PLOS ONE, 11(6).  
+https://doi.org/10.1371/journal.pone.0157986
 
 
 
