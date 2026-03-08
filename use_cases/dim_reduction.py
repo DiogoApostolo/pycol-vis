@@ -35,7 +35,7 @@ complexity_train = ImageComplexity(folder,keep_classes=classes,number_per_class=
 
 complexity_train.embed_images(emb_type='efficient_net')
 
-complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_compoments=N_COMPONENTS)
+complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_components=N_COMPONENTS)
 reduction_method = complexity_train.reduction_method
 
 print("Reduction method used:")

@@ -34,7 +34,7 @@ complexity_train.sample_dataset(n_samples_per_class=N_SAMPLES_PER_CLASS,sample_t
 
 #Embed the images and reduce the dimensionality of the embeddings
 complexity_train.embed_images(emb_type='efficient_net')
-complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_compoments=10)
+complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_components=10)
 reduction_method = complexity_train.reduction_method
 
 
