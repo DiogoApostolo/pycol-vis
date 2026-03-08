@@ -33,7 +33,7 @@ The following Table shows the measures implemented in our package divided by fam
 | Intrinsic | Unique Colors                                          | #Colors     | 1–∞                  | [7]  |
 | Intrinsic | Zipf Rank/Difference                                   | Zipf        | 0–1                  | [5]  |
 | Intrinsic | Haralick Features                                      | haralick    | 0-1                  | [7]  |
-| Intrinsic | FFT Features                                           | fft         | —                    | — |
+| Intrinsic | FFT Features                                           | fft         | 0-1                    | — |
 
 #### Overlap:
 * **Cumulative Spectral Gradient (CSG):** Graph-based measure obtained using spectral clustering. Minimum cutting cost of the Similarity Matrix S. 
@@ -53,7 +53,7 @@ The following Table shows the measures implemented in our package divided by fam
 * **Unique Colors:** The unique colors present in a given image. Image is first quantized to reduce the color space, leaving only the most relevant colors.
 * **Zipf Rank/Difference:** Complexity based on Zipf-like statistics and Zipf's Law, which claims that in many natural processes the frequency of something is inversely proportional to its rank. 
 * **Haralick Features:** Group of measures based on haralick features obtained based on the Gray Level Co-occurrence Matrix.
-* **FFT Features:** Group of measures based on fft features. Image is converted to frequency space and the energy in low, mid and high frequency bands is calculated as well as the radial profile. 
+* **FFT Features:** Group of measures based on fft features. Image is converted to frequency space and the energy in low, mid and high frequency bands is calculated
 
 
 
