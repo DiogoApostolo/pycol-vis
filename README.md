@@ -46,7 +46,7 @@ The following Table shows the measures implemented in our package divided by fam
 
 #### Instrinsic:
 * **JPEG Compression Ratio:** The compression Ratio Achieved by compressing an image to JPEG format (quality is defined as a parameter)
-* **Fractal Compression:**
+* **Fractal Compression:** The compression Ratio Achieved by compressing an image using fractal compression
 * **Entropy:** The Shannon Entropy of a given image
 * **Canny/Sobel Edge Density:** The density of edges of a given image, calculated used either Canny or Sobel Filters. More edge density indicates higher complexity.
 * **Color Average/STD:** The average and standard deviation of the colors of a given image, for each individual channel of the image. Image can be converted into different formats.
