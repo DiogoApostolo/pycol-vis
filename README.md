@@ -52,20 +52,20 @@ The following Table shows the measures implemented in our package divided by fam
 * **Color Average/STD:** The average and standard deviation of the colors of a given image, for each individual channel of the image. Image can be converted into different formats.
 * **Unique Colors:** The unique colors present in a given image. Image is first quantized to reduce the color space, leaving only the most relevant colors.
 * **Zipf Rank/Difference:** Complexity based on Zipf-like statistics and Zipf's Law, which claims that in many natural processes the frequency of something is inversely proportional to its rank. 
-* **Haralick Features:** Group of of measures based on haralick features obtained using graycomatrix and graycoprops.
-* **FFT Features:** Group of of measures based on fft features. Image is converted to frequency space and the energy in low, mid and high frequency bands is calculated as well as the radial profile. 
+* **Haralick Features:** Group of measures based on haralick features obtained using graycomatrix and graycoprops.
+* **FFT Features:** Group of measures based on fft features. Image is converted to frequency space and the energy in low, mid and high frequency bands is calculated as well as the radial profile. 
 
 
 
 ## Installation Instructions
 
-All packages required to run ImComPy are listed in the requirements.txt file found in this github repository. To install all needed pacakges run:
+All packages required to run ImComPy are listed in the requirements.txt file found in this github repository. To install all needed packages run:
 
 `pip install -r requirements.txt`
 
 ## Datasets
 
-Various datasets are used in the use cases presented in this page. Below is a list of some of the datasets used to test our package which are also necessary to run the use case files:
+Below is a list of some of the datasets used to test our package which are also necessary to run the use case files:
 
 * [Shapes dataset](https://data.mendeley.com/datasets/wzr2yv7r53/1): Dataset is composed of 2D 9 geometric shapes, each shape is drawn randomly on a 200x200 RGB image.
 * [COVID Dataset](https://www.kaggle.com/datasets/prashant268/chest-xray-covid19-pneumonia): Covid Dataset with 3 classes COVID19, PNEUMONIA and NORMAL
@@ -85,7 +85,7 @@ This package expects the datasets to be stored in the following structure:
 
 ### Basic Usage
 
-This section shows some basic syntax of how to use our package. Specifically, how to load a dataset, parameterize the setup and how to run the different complexity measures.
+This section shows the basic syntax and how to use our package. Specifically, how to load a dataset, parameterize the setup and how to run the different complexity measures.
 
 ```python
 
@@ -114,8 +114,7 @@ comp.csg_measure(
 
 Our package offers the user diverse methods to visualize dataset complexity.
 
-This example shows how the measured overlap complexity can easlity shown in a bar plot. The *plot_overlap_measures* function automatically 
-graps all overlap measures calculated so far and displays them to the user.
+This example shows how the measured overlap complexity can be show in a bar plot. The *plot_overlap_measures* function automatically grabs all overlap measures calculated until that point and displays them to the user.
 
 ```python
 
@@ -140,8 +139,8 @@ complexity.plot_overlap_measures()
 ![Bar Plot of Overlap Measures](images/bar_overlap.png)
 
 
-Continuing from the previous example, a user might also want to visualize how the dataset was embeded. Using the *plot_tsne* method our package
-uses t-SNE to show the user a 2D projection of the embeded dataset.
+Continuing from the previous example, a user might also want to visualize how the dataset was embedded. Using the *plot_tsne* method our package
+uses t-SNE to show the user a 2D projection of the embedded dataset.
 
 ```python
 
@@ -153,15 +152,17 @@ complexity_train.plot_tsne(embs=complexity_train.feature_embeddings)
 
 ### Use Cases
 
-A collection of Use Cases is shown are provided in the use_cases folder. The provided use cases use the datasets described previously and display how our package can be used in practice to extract valuable insights from image datasets. 
+A collection of Use Cases are provided in the use_cases folder. These examples display how our package can be used in practice to extract valuable insights from image datasets. 
 
 In particular de use case folder includes the following files:
 
 * **model_selection.py:** A Use Case showing how the overlap measures in our package can be used to inform model selection
 * **sample_selection.py:** A Use Case showing how the intrinsic measures can be used to reduce the dataset size, selecting only the most relevant samples
-* **dim_reduction.py:** A Use Case showing how the overlap measures can be used to reduce the embedding feature space, without losing classfication performance.
+* **dim_reduction.py:** A Use Case showing how the overlap measures can be used to reduce the embedding feature space, without losing classification performance.
 * **viz_example.py:** A Use Case displaying the different visualization options present in our package
 * **layers.py** A Use Case of how to train a Custom NN and extract complexity at each layer. 
+
+More information is provided in each individual file.
 
 ## References
 
@@ -197,12 +198,4 @@ arXiv:2008.04431. https://arxiv.org/abs/2008.04431
 Predicting Complexity Perception of Real World Images.  
 PLOS ONE, 11(6).  
 https://doi.org/10.1371/journal.pone.0157986
-
-
-
-
-
-
-
-
 
