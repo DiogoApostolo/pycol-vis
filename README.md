@@ -150,7 +150,7 @@ complexity.m_sep_measure(emb_type='efficient_net', reduction_type='pca')
 complexity.plot_overlap_measures()
 ```
 
-![Bar Plot of Overlap Measures](images/bar_overlap.png)
+![Bar Plot of Overlap Measures](https://github.com/DiogoApostolo/pycol-vis/raw/main/images/bar_overlap.png)
 
 
 Continuing from the previous example, a user might also want to visualize how the dataset was embedded. Using the *plot_tsne* method our package
@@ -161,7 +161,7 @@ uses t-SNE to show the user a 2D projection of the embedded dataset.
 complexity_train.plot_tsne(embs=complexity_train.feature_embeddings)
 
 ```
-![Bar Plot of Overlap Measures](images/emb.png)
+![Bar Plot of Overlap Measures](https://github.com/DiogoApostolo/pycol-vis/raw/main/images/emb.png)
 
 
 ### Use Cases
