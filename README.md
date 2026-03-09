@@ -61,7 +61,19 @@ The following Table shows the measures implemented in our package divided by fam
 
 All packages required to run ImComPy are listed in the requirements.txt file found in this github repository. To install all needed packages run:
 
-`pip install -r requirements.txt`
+```bash
+
+# Clone the repository
+git clone https://github.com/DiogoApostolo/pycol-vis.git
+cd pycol-vis
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install the package in editable mode
+pip install -e .
+
+```
 
 ## Datasets
 
@@ -85,9 +97,11 @@ This package expects the datasets to be stored in the following structure:
 
 ### Basic Usage
 
-This section shows the basic syntax and how to use our package. Specifically, how to load a dataset, parameterize the setup and how to run the different complexity measures.
+This section shows how to correctly import the package, load a dataset, parameterize the setup and extract dataset complexity. 
 
 ```python
+
+from pycol_vis.image_metrics import ImageComplexity
 
 # Load the Dataset Stored in the Fruits folder, keeping only the apple and banana class and 100 samples (selected randomly) from each class.
 comp = ImageComplexity('Fruits',
