@@ -1,13 +1,6 @@
+from pycol_vis.image_metrics import ImageComplexity
+from pycol_vis.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
 
-
-import sys
-import os
-
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from image_metrics import ImageComplexity
-from classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
 import matplotlib.pyplot as plt
 
 '''

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycol-vis"
+version = "0.1.0"
+description = "Complexity measures and visualization for image datasets"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Diogo Apostolo", email = "your-email@example.com"}
+]
+license = {text = "MIT"}
+keywords = ["image", "complexity", "metrics", "visualization"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+
+dependencies = [
+    # TensorFlow / Keras
+    "tensorflow==2.16.1",
+
+    # PyTorch / torchvision
+    "torch==2.5.1",
+    "torchvision==0.20.1",
+
+    # Scientific stack
+    "numpy>=1.22.0",
+    "scipy>=1.10.0",
+    "pandas>=2.0.0",
+    "scikit-learn>=1.2.2",
+    "scikit-image>=0.22.0",
+    "matplotlib>=3.7.1",
+    "Pillow>=10.0.0",
+    "opencv-python>=4.8.0",
+
+    # Complexity analysis
+    "pycol-complexity>=0.1.0",
+
+    # Gradient boosting
+    "xgboost>=1.7.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,10 +1,5 @@
-import sys
-import os
+from pycol_vis.image_metrics import ImageComplexity
 
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from image_metrics import ImageComplexity
 
 '''
 Visualization use case example. In this example we show how the visualize_measure_distribution method can be used
