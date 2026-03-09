@@ -1,7 +1,5 @@
-from pyexpat import features
 
 import cv2
-from functorch import dim
 import numpy as np
 import os
 import pandas as pd
@@ -15,7 +13,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
-
+import random
 
 from pycol_complexity import complexity as pycol_complexity
 
@@ -1693,15 +1691,95 @@ class ImageComplexity:
         plt.title(f'Average {metric_name} per Class')
     
         plt.show()
+
+   
+
+    def visualize_measure_distribution(self, measure="entropy", n=10, figsize=(15, 6), seed=None, by_class=False):
+        
+        '''
+        Method to visualize the images in a dataset based on their measured complexity. 
+
+        Images are presented in 3 Rows, corresponding to High, Medium and Low Complexity.
+        For each group 'n' images are sampled at random and displayed to the user.
+
+        Parameters:
+        - measure (str): The name of the intrinsic measure to visualize, should correspond to the name stored in the self.images Df
+        - n (int): The number of images per group to display
+        - figsize (tuple): The figure size of each image to be displayed
+        - seed (int): seed for the random sampling
+        - by_class (bool): if True a figure is generated for each individual class of the dataset. If false the random sampling will be done for the entire dataset and only one figure will be displayed.
+        '''
+
+        if(seed is not None):
+            np.random.seed(seed)
+
+        if(measure not in self.images.columns):
+            raise ValueError("Measure " + measure + "not found in self.images.")
+
+
+        if(by_class==False):
+           classes = [None]
+        else:
+           classes = self.images['class'].unique()
+
+
+        for cls in classes:
+            if(cls is None):
+                df_subset = self.images.copy()
+                title_suffix = ""
+            else:
+                df_subset = self.images[self.images['class'] == cls]
+                title_suffix = " - Class '" + cls +  "'"
+
+            total_images = len(df_subset)
+            n_per_row = min(n, total_images // 3)
+
+            if n_per_row == 0:
+                print("Not enough images for class " + cls + "to display " + str(n) + " per row. Skipping.")
+                continue
+
+            df_sorted = df_subset.sort_values(by=measure)
+
+            low_images = df_sorted.iloc[:n_per_row].sample(n=n_per_row, random_state=seed)
+            med_images = df_sorted.iloc[total_images//3 : total_images//3 + n_per_row].sample(n=n_per_row, random_state=seed)
+            high_images = df_sorted.iloc[-n_per_row:].sample(n=n_per_row, random_state=seed)
+
+            image_rows = [low_images, med_images, high_images]
+            row_labels = ["Low", "Medium", "High"]
+
+            fig, axes = plt.subplots(nrows=3, ncols=n_per_row, figsize=figsize)
+
+            # Handle case n_per_row = 1
+            if n_per_row == 1:
+                axes = axes[:, np.newaxis]
+
+            for row_idx, row_df in enumerate(image_rows):
+                for col_idx, (_, img_row) in enumerate(row_df.iterrows()):
+                    img = self.load_image(img_row['image_path'], convert_rgb=True)
+                    axes[row_idx, col_idx].imshow(img)
+                    axes[row_idx, col_idx].axis('off')
+                    axes[row_idx, col_idx].set_title(f"{img_row[measure]:.3f}", fontsize=9)
+
+                fig.text(0.04, 0.5/3 + row_idx/3, row_labels[row_idx], va='center', ha='center', rotation='vertical', fontsize=12,  fontweight='bold')
+
+            plt.suptitle(f"Visualization of '{measure}' measure{title_suffix}", fontsize=14)
+            plt.tight_layout(rect=[0.06, 0.03, 1, 0.95])
+            plt.show()
+
     
 #add main function to test the class
 if __name__ == "__main__":
-    dataset = "shapes_dataset"
+    dataset = "Fruit_dataset"
     folder = "./" + dataset +  "/train/"
 
-    classes = ["Circle","Square","Triangle"]
+    classes = ["apple","banana"]
 
     complexity_train = ImageComplexity(folder,keep_classes=classes,number_per_class=200)
+    
+    complexity_train.entropy_measure()
+    complexity_train.visualize_measure_distribution(by_class="True")
+
+    '''
     complexity_train.haralick_measures()
     print(complexity_train.images.head())
     
@@ -1718,3 +1796,4 @@ if __name__ == "__main__":
     print("AULS measure:", auls)
     print("M_sep measure:", m_sep)
     print("M_var measure:", m_var)
+    '''
