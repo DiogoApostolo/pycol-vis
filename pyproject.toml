@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pycol-vis"
-version = "0.1.2"
+version = "0.1.3"
 description = "Complexity Measures and Visualization for Image datasets"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10, <3.13"
 authors = [
     {name = "Diogo Apostolo", email = "japostolo@student.dei.uc.pt"}
 ]

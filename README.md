@@ -75,6 +75,8 @@ pip install -e .
 
 ```
 
+⚠️ Note: `pycol-vis` requires Python 3.10, 3.11, or 3.12. Python 3.13 and newer are **not currently supported** due to TensorFlow compatibility.
+
 ## Datasets
 
 Below is a list of some of the datasets used to test our package which are also necessary to run the use case files:
