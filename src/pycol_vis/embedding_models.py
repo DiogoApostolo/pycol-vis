@@ -86,72 +86,58 @@ class ConvAutoencoder:
     
 
 class EfficientNetLite0EmbeddingModel(torch.nn.Module):
-    def __init__(self):
+
+    def __init__(self, device=None):
         super().__init__()
 
-        # Preprocessing
-        self.preprocess = transforms.Compose([
-            transforms.Resize(224),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225]
-            )
-        ])
+        self.device = device if device else torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
 
-        # Base model
-        base = efficientnet_b0(weights=EfficientNet_B0_Weights.DEFAULT)
-        base.eval()
+        base_model = efficientnet_b0(weights=EfficientNet_B0_Weights.DEFAULT)
+        self.encoder = torch.nn.Sequential(*list(base_model.children())[:-1])
+        self.encoder.eval()
+        self.encoder.to(self.device)
 
-        # Remove classifier head
-        self.encoder = torch.nn.Sequential(*list(base.children())[:-1])
+    def forward(self, x):
+        """
+        x: Tensor of shape (batch_size, 3, 224, 224)
+        """
 
-    def forward(self, img):
-        
+        x = x.to(self.device)
 
-        # If img is a list → batch
-        if isinstance(img, list):
-            tensors = [self.preprocess(i) for i in img]
-            batch = torch.stack(tensors)
-        else:
-            # Single image
-            batch = self.preprocess(Image.fromarray(img)).unsqueeze(0)
+        with torch.inference_mode():
+            features = self.encoder(x)
 
-        with torch.no_grad():
-            features = self.encoder(batch)
+        features = torch.flatten(features, 1)
 
-        return features.squeeze()  # (batch_size, 1280)
+        return features
 
 
 class MobileNetV3EmbeddingModel(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, device=None):
         super().__init__()
-        
 
         
+        self.device = device if device else torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
+
         weights = MobileNet_V3_Small_Weights.DEFAULT
-        self.preprocess = weights.transforms()
-
-        model = mobilenet_v3_small(weights=weights)
-        model.classifier = torch.nn.Identity()  # remove classifier
-        model.eval()
-
-        self.encoder = model
-
-    def forward(self, imgs):
-    
-        if isinstance(imgs, list):
-            tensors = [self.preprocess(i) for i in imgs]
-            batch = torch.stack(tensors)
-        else:
-            # Single image
-            batch = self.preprocess(Image.fromarray(imgs)).unsqueeze(0)
-
-        with torch.no_grad():
+        base_model = mobilenet_v3_small(weights=weights)
+        base_model.classifier = torch.nn.Identity()
+        self.encoder = base_model.eval().to(self.device)
+        self.preprocess_transform = weights.transforms()
+        
+    def forward(self, batch: torch.Tensor):
+        """
+        batch: Tensor of shape (batch_size, 3, 224, 224)
+        """
+        batch = batch.to(self.device)
+        with torch.inference_mode():
             features = self.encoder(batch)
 
-        return features.squeeze()
+        return features  
     
 
 

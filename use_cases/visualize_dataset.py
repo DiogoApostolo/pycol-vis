@@ -16,20 +16,22 @@ Use the Fruit_dataset.zip in this repo
 
 '''
 
-
-dataset = "Fruit_dataset"
-folder = "./" + dataset +  "/train/"
-
-classes = ["apple","banana"]
-
-complexity_train = ImageComplexity(folder,keep_classes=classes)
-
-complexity_train.entropy_measure()
-complexity_train.visualize_measure_distribution(by_class="True")
+if __name__ == "__main__":
 
 
-list_of_images = [folder + "apple\\0.jpg",folder + "apple\\2.jpg"]
+    dataset = "Fruit_dataset"
+    folder = "./" + dataset +  "/train/"
+
+    classes = ["apple","banana"]
+
+    complexity_train = ImageComplexity(folder,keep_classes=classes)
+
+    complexity_train.entropy_measure()
+    complexity_train.visualize_measure_distribution(by_class="True")
 
 
-complexity_train.entropy_measure()
-complexity_train.visualize_specific_images(image_list=list_of_images)
+    list_of_images = [folder + "apple\\0.jpg",folder + "apple\\2.jpg"]
+
+
+    complexity_train.entropy_measure()
+    complexity_train.visualize_specific_images(image_list=list_of_images)
