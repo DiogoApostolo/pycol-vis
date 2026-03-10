@@ -35,7 +35,6 @@ The following Table shows the measures implemented in our package divided by fam
 | Intrinsic | Haralick Features                                      | haralick    | 0-1                  | [7]  |
 | Intrinsic | FFT Features                                           | fft         | 0-1                    | — |
 
-## Complexity Measures
 
 ### Overlap Measures
 - **Cumulative Spectral Gradient (CSG):** Graph-based measure derived from spectral clustering, representing the minimum cutting cost of the similarity matrix.
