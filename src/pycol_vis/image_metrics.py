@@ -1800,7 +1800,7 @@ class ImageComplexity:
                 if(not row.empty):
                     value = row.iloc[0][measure]
                     print(value)
-                    axes[i].set_title(f"{value:.3f}", fontsize=9)
+                    axes[i].set_title(f"{value:.3f}", fontsize=20)
 
         plt.suptitle("Selected Images Visualization", fontsize=14)
         plt.tight_layout()
