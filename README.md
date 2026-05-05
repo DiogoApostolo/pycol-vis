@@ -35,26 +35,24 @@ The following Table shows the measures implemented in our package divided by fam
 | Intrinsic | Haralick Features                                      | haralick    | 0-1                  | [7]  |
 | Intrinsic | FFT Features                                           | fft         | 0-1                    | — |
 
-#### Overlap:
-* **Cumulative Spectral Gradient (CSG):** Graph-based measure obtained using spectral clustering. Minimum cutting cost of the Similarity Matrix S. 
-* **Area Under Laplacian Curve (AULS):**  effect of the Area Under Laplacian Spectrum
-* **Cumulative Maximum Scaled Area Under Laplacian Spectrum (cmAULS):** Combines CSG and AULS
-* **Class Separability (m-sep):** Inter Class Separability based on LDA Measure
-* **In-Class Variability (m-var):** Intra Class Separability based on LDA Measure
 
+### Overlap Measures
+- **Cumulative Spectral Gradient (CSG):** Graph-based measure derived from spectral clustering, representing the minimum cutting cost of the similarity matrix.
+- **Area Under Laplacian Spectrum (AULS):** Measures the area under the Laplacian spectrum of the similarity graph.
+- **Cumulative Maximum Scaled AULS (cmAULS):** Combines the CSG and AULS measures to capture different aspects of graph-based overlap.
+- **Class Separability (m-sep):** Inter-class separability measure based on Linear Discriminant Analysis (LDA).
+- **In-Class Variability (m-var):** Intra-class variability measure based on Linear Discriminant Analysis (LDA).
 
-
-#### Instrinsic:
-* **JPEG Compression Ratio:** The compression Ratio Achieved by compressing an image to JPEG format (quality is defined as a parameter)
-* **Fractal Compression:** The compression Ratio Achieved by compressing an image using fractal compression
-* **Entropy:** The Shannon Entropy of a given image
-* **Canny/Sobel Edge Density:** The density of edges of a given image, calculated used either Canny or Sobel Filters. More edge density indicates higher complexity.
-* **Color Average/STD:** The average and standard deviation of the colors of a given image, for each individual channel of the image. Image can be converted into different formats.
-* **Unique Colors:** The unique colors present in a given image. Image is first quantized to reduce the color space, leaving only the most relevant colors.
-* **Zipf Rank/Difference:** Complexity based on Zipf-like statistics and Zipf's Law, which claims that in many natural processes the frequency of something is inversely proportional to its rank. 
-* **Haralick Features:** Group of measures based on haralick features obtained based on the Gray Level Co-occurrence Matrix.
-* **FFT Features:** Group of measures based on fft features. Image is converted to frequency space and the energy in low, mid and high frequency bands is calculated
-
+### Intrinsic Measures
+- **JPEG Compression Ratio:** Compression ratio obtained by compressing the image in JPEG format (compression quality is configurable).
+- **Fractal Compression:** Compression ratio obtained using fractal image compression.
+- **Entropy:** Shannon entropy of the image, measuring the amount of information or randomness.
+- **Edge Density (Canny/Sobel):** Density of edges detected using either Canny or Sobel filters; higher density indicates higher visual complexity.
+- **Color Statistics (Mean / Std):** Mean and standard deviation of pixel values for each color channel; images may be converted to different color spaces.
+- **Unique Colors:** Number of unique colors after color quantization, capturing color diversity within the image.
+- **Zipf Rank / Difference:** Complexity measure based on Zipf-like statistics, where the frequency of elements is inversely proportional to their rank.
+- **Haralick Features:** Texture-based complexity measures derived from the Gray-Level Co-occurrence Matrix (GLCM).
+- **FFT Features:** Frequency-based measures obtained by transforming the image into the frequency domain and computing the energy in low, mid, and high frequency bands.
 
 
 ## Installation Instructions
@@ -74,6 +72,15 @@ pip install -r requirements.txt
 pip install -e .
 
 ```
+
+Alternatively, the package is also available for installation through pypi in  [pycol-vis](https://pypi.org/project/pycol-vis/):
+
+
+```bash
+pip install pycol-vis
+```
+
+⚠️ Note: `pycol-vis` requires Python 3.10, 3.11, or 3.12. Python 3.13 and newer are **not currently supported** due to TensorFlow compatibility.
 
 ## Datasets
 
@@ -150,7 +157,7 @@ complexity.m_sep_measure(emb_type='efficient_net', reduction_type='pca')
 complexity.plot_overlap_measures()
 ```
 
-![Bar Plot of Overlap Measures](images/bar_overlap.png)
+![Bar Plot of Overlap Measures](https://github.com/DiogoApostolo/pycol-vis/raw/main/images/bar_overlap.png)
 
 
 Continuing from the previous example, a user might also want to visualize how the dataset was embedded. Using the *plot_tsne* method our package
@@ -161,7 +168,7 @@ uses t-SNE to show the user a 2D projection of the embedded dataset.
 complexity_train.plot_tsne(embs=complexity_train.feature_embeddings)
 
 ```
-![Bar Plot of Overlap Measures](images/emb.png)
+![Bar Plot of Overlap Measures](https://github.com/DiogoApostolo/pycol-vis/raw/main/images/emb.png)
 
 
 ### Use Cases

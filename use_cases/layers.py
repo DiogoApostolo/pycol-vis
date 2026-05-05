@@ -14,46 +14,48 @@ Use the Fruit_dataset.zip in this repo
 
 '''
 
-
-dataset = "Fruit_dataset"
-emb = "CNN"
-layer = -1
-depth = 4
-epochs = 10
+if __name__ == "__main__":
 
 
-
-    
-folder = "./" + dataset +  "/train/"
+    dataset = "Fruit_dataset"
+    emb = "CNN"
+    layer = -1
+    depth = 4
+    epochs = 10
 
 
 
-complexity = ImageComplexity(folder,keep_classes = ['apple','banana'],number_per_class=200)
-complexity.cnn_setup(depth=depth,epochs=epochs)
-
-csg_measures = []
-for layer in range(0,depth):
-    csg = complexity.csg_measure(emb_type=emb, reduction_type="pca", layer_index=layer)
-
-    if(layer == -1):
-        layer_name = "fin"
-    else:
-        layer_name = str(layer)
-
-    print("CSG Measure for layer", layer_name, ":", csg)
-
-    #save csg measure to an array and plot it after the loop
-    csg_measures.append(csg)
-
-
-layer_names = ["Layer " + str(i+1) for i in range(0,depth)]
+        
+    folder = "./" + dataset +  "/train/"
 
 
 
-plt.plot(range(0,depth), csg_measures, marker='o')
-plt.xlabel("Layer")
-plt.ylabel("CSG Measure")
-plt.title("CSG Measure per Layer")
-plt.xticks(range(0,depth), layer_names)
-plt.show()
+    complexity = ImageComplexity(folder,keep_classes = ['apple','banana'],number_per_class=200)
+    complexity.cnn_setup(depth=depth,epochs=epochs)
+
+    csg_measures = []
+    for layer in range(0,depth):
+        csg = complexity.csg_measure(emb_type=emb, reduction_type="pca", layer_index=layer)
+
+        if(layer == -1):
+            layer_name = "fin"
+        else:
+            layer_name = str(layer)
+
+        print("CSG Measure for layer", layer_name, ":", csg)
+
+        #save csg measure to an array and plot it after the loop
+        csg_measures.append(csg)
+
+
+    layer_names = ["Layer " + str(i+1) for i in range(0,depth)]
+
+
+
+    plt.plot(range(0,depth), csg_measures, marker='o')
+    plt.xlabel("Layer")
+    plt.ylabel("CSG Measure")
+    plt.title("CSG Measure per Layer")
+    plt.xticks(range(0,depth), layer_names)
+    plt.show()
 

@@ -18,43 +18,45 @@ Download the Dataset in https://www.kaggle.com/datasets/prashant268/chest-xray-c
 
 '''
 
+if __name__ == "__main__":
 
-dataset = "CovidDataset"
-folder = "./" + dataset +  "/train/"
+    dataset = "CovidDataset"
+    folder = "./" + dataset +  "/train/"
 
-classes = ["COVID19","PNEUMONIA"]
+    classes = ["PNEUMONIA","NORMAL"]
 
-N_COMPONENTS = 50
+    N_COMPONENTS = 50
 
-complexity_train = ImageComplexity(folder,keep_classes=classes,number_per_class=500)
+    complexity_train = ImageComplexity(folder,keep_classes=classes,number_per_class=200)
 
-complexity_train.embed_images(emb_type='efficient_net')
+    complexity_train.embed_images(emb_type='efficient_net')
 
-complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_components=N_COMPONENTS)
-reduction_method = complexity_train.reduction_method
+    complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_components=N_COMPONENTS)
+    reduction_method = complexity_train.reduction_method
 
-print("Reduction method used:")
-print(reduction_method)
+    print("Reduction method used:")
+    print(reduction_method)
 
-measure = complexity_train.csg_measure(emb_type="current",n_samples=50, reduction_type='custom', reduction_method=reduction_method)
+    measure = complexity_train.csg_measure(emb_type="current",n_samples=50, reduction_type='custom', reduction_method=reduction_method,auls=True)
 
-print("CSG Measure:", measure)
+    print("CSG Measure:", measure)
 
-X_train = complexity_train.feature_embeddings
-y_train = complexity_train.images['class'].values
+    X_train = complexity_train.feature_embeddings
+    y_train = complexity_train.images['class'].values
 
-print("Train set shape:")
-print(complexity_train.images.shape)
+    print("Train set shape:")
+    print(complexity_train.images.shape)
 
-folder = "./" + dataset +  "/test/"
+    folder = "./" + dataset +  "/test/"
 
-complexity_test = ImageComplexity(folder,keep_classes=classes,number_per_class=50)
-complexity_test.embed_images(emb_type='efficient_net')
-complexity_test.feature_embeddings = complexity_test.dim_reduction(complexity_test.feature_embeddings,method='custom',custom_method=reduction_method)
+    complexity_test = ImageComplexity(folder,keep_classes=classes,number_per_class=400)
+    complexity_test.embed_images(emb_type='efficient_net')
+    complexity_test.feature_embeddings = complexity_test.dim_reduction(complexity_test.feature_embeddings,method='custom',custom_method=reduction_method)
 
+    complexity_test.plot_tsne()
 
-X_test = complexity_test.feature_embeddings
-y_test = complexity_test.images['class'].values
+    X_test = complexity_test.feature_embeddings
+    y_test = complexity_test.images['class'].values
 
-accuracy_xgb = xgb_classifier(X_train,y_train,X_test,y_test)
-print("XGB Accuracy:", accuracy_xgb)
+    accuracy_xgb = xgb_classifier(X_train,y_train,X_test,y_test)
+    print("XGB Accuracy:", accuracy_xgb)

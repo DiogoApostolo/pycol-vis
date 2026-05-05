@@ -5,6 +5,8 @@ import os
 import pandas as pd
 from scipy import stats
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
+
 
 from skimage.feature import graycomatrix, graycoprops
 from sklearn.decomposition import PCA
@@ -17,6 +19,9 @@ from pycol_complexity import complexity as pycol_complexity
 
 from scipy.linalg import eigh
 from .embedding_models import EfficientNetLite0EmbeddingModel, MobileNetV3EmbeddingModel, CNNEmbeddingModel
+from .dataset_class import ImageDataset
+
+import torch
 
 
 class ImageComplexity:
@@ -265,6 +270,30 @@ class ImageComplexity:
 
     #-------------------------------
 
+    def efficientnet_preprocess(self,img):
+        '''
+        Auxiliary function that preprocesses the images to fit efficient-nets expected format
+        '''
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, (224, 224))
+        img = img.astype(np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406])
+        std  = np.array([0.229, 0.224, 0.225])
+        img = (img - mean) / std
+        img = np.transpose(img, (2, 0, 1))
+
+        return torch.tensor(img, dtype=torch.float32)
+
+    def mobilenet_preprocess(self,img):
+        
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, (224, 224))
+        img = img.astype(np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406])
+        std  = np.array([0.229, 0.224, 0.225])
+        img = (img - mean) / std
+        img = np.transpose(img, (2, 0, 1))
+        return torch.tensor(img, dtype=torch.float32)
 
 
     def embed_images(self, emb_type, layer_index=-1):
@@ -309,34 +338,46 @@ class ImageComplexity:
         
         # -------- PRE TRAINED MODELS --------
 
-        elif(emb_type == 'efficient_net'):
+        elif(emb_type == 'efficient_net' or emb_type=='mobile_net'):
 
-            print("Extracting EfficientNet-Lite0 embeddings...")
-            model = EfficientNetLite0EmbeddingModel()
-            feature_embeddings = []
-            for image_path in self.images['image_path']:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            batch_size = 16
+            num_workers = 4
 
-                img = self.load_image(image_path)
-                embedding = model(img)
-                feature_embeddings.append(np.array(embedding))
-
-            self.feature_embeddings = feature_embeddings
-            print("EfficientNet-Lite0 embeddings extracted.")
+            
+            
+            if(emb_type=='efficient_net'):
+                print("Extracting EfficientNet embeddings...")
+                model = EfficientNetLite0EmbeddingModel().to(device)
+                preprocess_method = self.efficientnet_preprocess
+            else:
+                print("Extracting MobileNet embeddings...")
+                model = MobileNetV3EmbeddingModel().to(device)
+                preprocess_method = self.mobilenet_preprocess
         
-        elif(emb_type == 'mobile_net'):
+            
+            model.eval()
 
-            print("Extracting MobileNetV3 embeddings...")
-            model = MobileNetV3EmbeddingModel()
-            feature_embeddings = []
+            dataset = ImageDataset(self.images["image_path"],preprocess_method)
+            loader = torch.utils.data.DataLoader(dataset,batch_size=batch_size,shuffle=False,num_workers=num_workers,pin_memory=True)
+            
 
-            for image_path in self.images['image_path']:
+            all_embeddings = []
 
-                img = self.load_image(image_path)
-                embedding = model(img)
-                feature_embeddings.append(np.array(embedding))
+            with torch.inference_mode():
+                for batch in loader:
+                    batch = batch.to(device)
+                    embeddings = model(batch)
+                    all_embeddings.append(embeddings.cpu())
 
-            self.feature_embeddings = feature_embeddings
-            print("MobileNetV3 embeddings extracted.")
+            self.feature_embeddings = torch.cat(all_embeddings).numpy()
+
+            if(emb_type=='efficient_net'):
+                print("EfficientNet embeddings extracted.")
+            else:
+                print("MobileNet embeddings extracted.")
+
+        
             
         return self.feature_embeddings
     
@@ -1800,7 +1841,7 @@ class ImageComplexity:
                 if(not row.empty):
                     value = row.iloc[0][measure]
                     print(value)
-                    axes[i].set_title(f"{value:.3f}", fontsize=9)
+                    axes[i].set_title(f"{value:.3f}", fontsize=20)
 
         plt.suptitle("Selected Images Visualization", fontsize=14)
         plt.tight_layout()
