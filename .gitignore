@@ -80,3 +80,9 @@ temp/
 # ================================
 shapes_dataset/
 Fruit_dataset/
+
+
+# ================================
+# Local testing / debug scripts
+# ================================
+reproduce_bugs.py
