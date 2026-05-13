@@ -1,10 +1,9 @@
 
 import cv2
 import numpy as np
-from scipy import stats
 from skimage.feature import graycomatrix, graycoprops
 
-from ..utils.utils import load_image, load_image_gs, convert_to_hsv, select_channel, quantized_color_set, edge_mask
+from ..utils.utils import load_image_gs
 
 
 def sobel_edges(channel, direction='all'):

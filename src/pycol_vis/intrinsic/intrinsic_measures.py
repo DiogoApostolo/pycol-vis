@@ -302,7 +302,7 @@ def jpeg_compression_ratio(image_paths, quality=90, channel='all', is_edge_proce
     - channel (str): The image channel to use for compression. Options are 'all', 'R', 'G', 'B', 'H', 'S', or 'V'.
     - is_edge_processing (bool): Whether to apply edge processing to the image before compression.
     - edge_method (str): The method to use for edge processing if is_edge_processing is True.
-    - direction (str): The direction of edges to calculate for edge processing.
+    - direction (str): The direction of edges to calculate for edge processing. Options are 'x' for horizontal edges, 'y' for vertical edges, and 'all' for both.
 
     Returns:
     - list: A list of tuples containing the compression ratio and RMSE values for each image.
@@ -464,7 +464,7 @@ def count_unique_colors(image_paths, bits_per_channel=8, use_mask=False):
     Parameters:
     - image_paths (list): List of image file paths.
     - bits_per_channel (int): The number of bits to use for quantization per color channel.
-    - use_mask (bool): Whether to apply an edge mask to the image before counting unique colors.
+    - use_mask (bool): Whether to apply an edge mask to the image before counting unique colors. If True, an edge mask is applied to the image to focus on important regions and reduce noise from irrelevant areas. Default is False.
 
     Returns:
     - list: A list of the count of unique colors for each image.

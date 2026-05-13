@@ -81,14 +81,15 @@ def plot_intrinsic_measures(images_df):
 
 def plot_tsne(embeddings, labels, save_image=False, name="tsne_plot.png", folder="./"):
     '''
-    Plot a t-SNE visualization of feature embeddings.
+    Plot a t-SNE visualization of feature embeddings. If embs is not provided, it will use the feature embeddings stored in self.feature_embeddings. If no embeddings are found, it will raise a ValueError. 
+    The plot will be saved to the specified folder with the given name if save_image is True.
 
     Parameters:
     - embeddings (np.ndarray): Feature embeddings.
     - labels (array-like): Class labels.
-    - save_image (bool): Whether to save the plot.
-    - name (str): Output image name.
-    - folder (str): Folder where the image will be saved.
+    - save_image (bool): Whether to save the t-SNE plot as an image file. Default is False.
+    - name (str): The name of the image file to save the plot. Default is "tsne_plot.png".
+    - folder (str): The folder path where the image file will be saved if save_image is True. Default is "./".
     '''
 
     embeddings = np.array(embeddings)
@@ -123,12 +124,11 @@ def plot_tsne(embeddings, labels, save_image=False, name="tsne_plot.png", folder
 
 def visualize_metrics_per_class(images_df, metric_name):
     '''
-    Visualize the average values of a specific intrinsic
-    measure for each class as a bar plot.
+    Visualize the average values of a specific intrinsic measure for each class as a bar plot.
 
     Parameters:
     - images_df (pd.DataFrame): DataFrame containing image metrics.
-    - metric_name (str): Metric name to visualize.
+    - metric_name (str): The name of the intrinsic measure to visualize. This should correspond to a column in the self.images DataFrame that contains the calculated values for that measure. The method will calculate the average value of the specified measure for each class and create a bar plot to visualize the differences between classes.
     '''
 
     existing_columns = images_df.columns.tolist()
@@ -157,11 +157,11 @@ def visualize_measure_distribution(images_df, measure="entropy", n=10, figsize=(
 
     Parameters:
     - images_df (pd.DataFrame): DataFrame containing image paths and metrics.
-    - measure (str): Metric to visualize.
-    - n (int): Number of images per group.
-    - figsize (tuple): Figure size.
-    - seed (int): Random seed.
-    - by_class (bool): Whether to visualize each class separately.
+    - measure (str): The name of the intrinsic measure to use for visualizing the distribution. This should correspond to a column in the self.images DataFrame that contains the calculated values for that measure.
+    - n (int): The number of images to display for each complexity level (High, Medium, Low). Default is 10.
+    - figsize (tuple): The size of the figure for the plot. Default is (15, 6).
+    - seed (int): The random seed for reproducibility when selecting images to display. Default is None, which means that the selection will be random each time the method is called.
+    - by_class (bool): Whether to visualize the distribution of the measure separately for each class. If True, the method will create separate plots for each class, showing the distribution of the specified measure within each class. If False, a single plot will be created showing the overall distribution of the measure across all classes. Default is False.
     '''
 
     if(seed is not None):
@@ -225,13 +225,13 @@ def visualize_measure_distribution(images_df, measure="entropy", n=10, figsize=(
 
 def visualize_specific_images(images_df, image_list, measure="entropy", figsize=(15, 3)):
     '''
-    Method to visualize a list of images and their measured complexity.
+    Visualize a specific list of images along with their corresponding values for a specified intrinsic measure. The method will create a plot displaying the selected images and annotate each image with its value for the specified measure.
 
     Parameters:
     - images_df (pd.DataFrame): DataFrame containing image metrics.
-    - image_list (list): List of image paths.
-    - measure (str): Metric to display.
-    - figsize (tuple): Figure size.
+    - image_list (list): A list of image paths to visualize. Each path should correspond to an image in the dataset that has a calculated value for the specified measure in the self.images DataFrame.
+    - measure (str): The name of the intrinsic measure to display for each image. This should correspond to a column in the self.images DataFrame that contains the calculated values for that measure. The method will annotate each image with its value for this measure.
+    - figsize (tuple): The size of the figure for the plot. Default is (15, 3).
     '''
 
     n_images = len(image_list)

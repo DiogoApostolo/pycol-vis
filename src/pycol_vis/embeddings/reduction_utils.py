@@ -3,36 +3,25 @@ import numpy as np
 from sklearn.decomposition import PCA
 
 from sklearn.manifold import TSNE
-from sympy import reduced
 
 
-def dim_reduction_aux(embs,method='pca',n_components=50,custom_method=None,return_model=False):
+def dim_reduction(embs,method='pca',n_components=50,custom_method=None,return_model=False):
     '''
-    Reduce embedding dimensionality.
+        Perform dimensionality reduction on the feature embeddings.
 
-    Parameters
-    ----------
-    embeddings : np.ndarray
+        Parameters:
+        - emb (numpy.ndarray): The feature embeddings to reduce.
+        - method (str): The dimensionality reduction method to use. Options include 'pca', 'tsne', or 'custom'. Default is 'pca'.
+        - n_components (int): The number of components to keep after dimensionality reduction. Default is 50.
+        - custom_method (callable): A custom dimensionality reduction method. If provided, this will be used instead of the default methods.
+        - return_model (bool): Whether to return the fitted dimensionality reduction model along with the reduced embeddings. Default is False.
 
-    method : str
-        'pca', 'tsne', or 'custom'
-
-    n_components : int
-
-    custom_method : object
-        sklearn-like transformer
-
-    return_model : bool
-        Whether to return fitted reducer.
-
-    Returns
-    -------
-    reduced_embeddings
-
-    OR
-
-    (reduced_embeddings, reducer)
+        Returns:
+        - np.ndarray: A NumPy array containing the reduced feature embeddings.
+        - object (optional): The fitted dimensionality reduction model, returned if return_model is True
     '''
+
+
 
     
     if(method == "pca"):

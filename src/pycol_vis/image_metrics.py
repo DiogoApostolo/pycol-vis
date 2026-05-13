@@ -1,44 +1,25 @@
 
-import cv2
-import numpy as np
-import os
-import pandas as pd
-from scipy import stats
 
+import os
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
 
 
-from skimage.feature import graycomatrix, graycoprops
-from sklearn.manifold import TSNE
-from sklearn.neighbors import NearestNeighbors
-from sklearn.preprocessing import MinMaxScaler
-import matplotlib.pyplot as plt
-
-from pycol_complexity import complexity as pycol_complexity
-
-from scipy.linalg import eigh
 
 
-from .utils.utils import load_image, load_image_gs, select_channel, get_average_image_shape, load_images, convert_to_hsv, sample_dataset, quantized_color_set, edge_mask
-
-from sklearn.decomposition import PCA
+from .utils.utils import get_average_image_shape, load_images,  sample_dataset
 
 
-
-
-from scipy.linalg import eigh
-
-
-from .embeddings.embedding_utils import generate_embeddings, setup_cnn, embed_images
-from .embeddings.reduction_utils import dim_reduction_aux, normalize_embs
+from .embeddings.embedding_utils import setup_cnn, embed_images
+from .embeddings.reduction_utils import dim_reduction
 
 
 from .visualization import plot_overlap_measures,plot_intrinsic_measures,plot_tsne,visualize_metrics_per_class,visualize_measure_distribution,visualize_specific_images
 
 from .intrinsic import intrinsic_measures
 from .overlap import overlap_measures
+
 class ImageComplexity:
     def __init__(self, folder, keep_classes = 'all', number_per_class= -1, use_keras_dataset=False):
         self.use_keras_dataset = use_keras_dataset
@@ -56,10 +37,33 @@ class ImageComplexity:
 
 
     def sample_dataset(self, n_samples_per_class, sample_type='jpeg_compression'):
+        '''
+        Sample the dataset based on the specified sampling type and number of samples per class. The sampling is performed separately for each class to ensure a balanced representation of classes in the sampled dataset.
+        Parameters:
+        - n_samples_per_class (int): The number of samples to select for each class in the dataset. If set to -1, all samples from each class will be included in the sampled dataset.
+        - sample_type (str): The type of sampling to perform. Options are 'random', 'complexity', or 'jpeg_compression'. 
+            - 'random': Randomly select samples from each class without considering any specific criteria.
+            - 'jpeg_compression': Select samples based on their JPEG compression ratio, which can be an indicator of image quality and complexity, to include images with varying levels of compression in the sampled dataset.
+        
+        '''
         self.images = sample_dataset(self.images, n_samples_per_class=n_samples_per_class, sample_type=sample_type)
     
 
     def embed_images(self, emb_type, layer_index=-1, num_workers=0):
+        '''
+        Embed the images using the specified embedding type and layer index. The resulting embeddings are stored in the self.feature_embeddings attribute for later use in overlap measure calculations.
+        
+        Parameters:
+        - emb_type (str): The type of embeddings to generate for the images. Options include:
+          'raw' for raw pixel values
+          'CNN' for embeddings extracted from a convolutional neural network (requires cnn_setup to be called first)
+          'efficient_net' for embeddings generated using the EfficientNet architecture
+          'mobile_net' for embeddings generated using the MobileNet architecture
+          'current' to use previously calculated embeddings stored in self.feature_embeddings
+        - layer_index (int): The index of the layer from which to extract embeddings if emb_type is 'CNN'. If -1 is specified, the final layer embeddings will be used.
+        - num_workers (int): The number of worker processes to use for parallel embedding generation. Default is 0, which means that the embedding generation will be performed in the main process.
+        '''
+
 
         if(emb_type != "CNN"):
             self.model = None
@@ -69,12 +73,30 @@ class ImageComplexity:
 
 
     def cnn_setup(self,depth=2,epochs=10,is_train=True):
+        '''
+        Set up the CNN model for embedding generation.
+        Parameters:
+        - depth (int): The number of layers in the CNN model from which to extract embeddings. Default is 2.
+        - epochs (int): The number of epochs to train the CNN model if is_train is True. Default is 10.
+        - is_train (bool): Whether to train the CNN model or use a pre-trained model for embedding extraction. If True, the model will be trained on the dataset. If False, a pre-trained model will be used without additional training. Default is True.
+        '''
         self.model = setup_cnn(image_shape=self.image_shape,num_classes=self.num_classes,images=self.images,depth=depth,epochs=epochs,train_model=is_train)
 
 
     def dim_reduction(self,emb,method='pca',n_components=50,custom_method=None):
+        '''
+        Perform dimensionality reduction on the feature embeddings.
 
-        reduced_embs, reduction_method = dim_reduction_aux(embs=emb,method=method,n_components=n_components,custom_method=custom_method,return_model=True)
+        Parameters:
+        - emb (numpy.ndarray): The feature embeddings to reduce.
+        - method (str): The dimensionality reduction method to use. Options include 'pca', 'tsne', or 'custom'. Default is 'pca'.
+        - n_components (int): The number of components to keep after dimensionality reduction. Default is 50.
+        - custom_method (callable): A custom dimensionality reduction method. If provided, this will be used instead of the default methods.
+
+        Returns:
+        - numpy.ndarray: The reduced feature embeddings.
+        '''
+        reduced_embs, reduction_method = dim_reduction(embs=emb,method=method,n_components=n_components,custom_method=custom_method,return_model=True)
         self.reduction_method = reduction_method
         self.feature_embeddings = reduced_embs
 
@@ -171,6 +193,14 @@ class ImageComplexity:
     def n_regions(self, scale_factor=0.02, color_factor=0.1, area_factor=0.001):
         '''
         Calculate the number of regions in each image using a combination of color quantization and edge detection, and store the values in the self.images DataFrame under the column 'n_regions'.
+        The mean shift algorithm is applied to each image to segment it into regions based on color and spatial proximity.
+        Images are specified in the image_paths list, and the resulting number of regions for each image is returned as a list. 
+
+        Parameters:
+        - scale_factor (float): A value to determine the spatial radius for mean shift segmentation based on the image dimensions.
+        - color_factor (float): A value to determine the color radius for mean shift segmentation based on the image dimensions.
+        - area_factor (float): A value to determine the minimum region size for mean shift segmentation based on the image dimensions.
+
         '''
 
         n_regions = intrinsic_measures.n_regions(image_paths=self.images['image_path'], scale_factor=scale_factor, color_factor=color_factor, area_factor=area_factor)
@@ -180,6 +210,18 @@ class ImageComplexity:
     def jpeg_compression_ratio(self, quality=90, channel='all', is_edge_processing=False, edge_method='sobel', direction='all'):
         '''
         Calculate the JPEG compression ratio of each image at the specified quality level and store the values in the self.images DataFrame under the column 'jpeg_compression_ratio' and the RMSE values in the column 'jpeg_rmse'.
+
+        The method compresses each image using JPEG compression at the specified quality level and calculates the compression ratio as the size of the compressed image divided by the size of the original image.
+
+        User may choose to first apply edge processing to the image before compression, which may affect the compression ratio. 
+        If edge processing is applied, the user can specify the method and direction for edge detection.
+
+        Parameters:
+        - quality (int): The quality level for JPEG compression (0 to 100).
+        - channel (str): The image channel to use for compression. Options are 'all', 'R', 'G', 'B', 'H', 'S', or 'V'.
+        - is_edge_processing (bool): Whether to apply edge processing to the image before compression.
+        - edge_method (str): The method to use for edge processing if is_edge_processing is True.
+        - direction (str): The direction of edges to calculate for edge processing. Options are 'x' for horizontal edges, 'y' for vertical edges, and 'all' for both.
         '''
 
         jpeg_metrics = intrinsic_measures.jpeg_compression_ratio( image_paths=self.images['image_path'],quality=quality,channel=channel,is_edge_processing=is_edge_processing,edge_method=edge_method,direction=direction )
@@ -194,6 +236,12 @@ class ImageComplexity:
     def zipf_rank(self, channel='all'):
         '''
         Calculate the Zipf rank slope and r-value for each image and store the values in the self.images DataFrame under the columns 'zipf_slope' and 'zipf_r_value'.
+
+        The method computes the frequency of pixel values, ranks them, and performs a linear regression on the log-log scale to determine the slope and R-value of the distribution, which can provide insights into the complexity and structure of the image.
+
+
+        Parameters:
+            - channel (str): The image channel to use for calculating the Zipf rank. Options are 'all', 'R', 'G', 'B', 'H', 'S', or 'V'.
         '''
 
         zipf = intrinsic_measures.zipf_rank(image_paths=self.images['image_path'], channel=channel )
@@ -208,6 +256,9 @@ class ImageComplexity:
     def zipf_difference(self, channel='all'):
         '''
         Calculate the Zipf difference slope and r-value for each image and store the values in the self.images DataFrame under the columns 'zipf_diff_slope' and 'zipf_diff_r_value'.
+
+        Parameters:
+            - channel (str): The image channel to use for calculating the Zipf rank. Options are 'all', 'R', 'G', 'B', 'H', 'S', or 'V'.
         '''
 
         zipf =  intrinsic_measures.zipf_difference(image_paths=self.images['image_path'],channel=channel)
@@ -221,7 +272,13 @@ class ImageComplexity:
 
     def count_unique_colors(self, bits_per_channel=8, use_mask=False):
         '''
-        Calculate the number of unique colors in each image and store the values in the self.images DataFrame under the column 'unique_colors'.
+        Count the number of unique colors in each image and store the values in the self.images DataFrame under the column 'unique_colors', with optional quantization and edge masking. The method quantizes the colors of the image to reduce the number of unique colors, 
+        making the computation more efficient and counting only the most relevant colors. If use_mask is True, an edge mask is applied to the image before counting unique colors, 
+        which can help to focus on the most important regions of the image and reduce noise from irrelevant areas.
+
+        Parameters:
+        - bits_per_channel (int): The number of bits to use for quantization per color channel.
+        - use_mask (bool): Whether to apply an edge mask to the image before counting unique colors. If True, an edge mask is applied to the image to focus on important regions and reduce noise from irrelevant areas. Default is False.
         '''
 
         colors_count, unique_colors = intrinsic_measures.count_unique_colors(image_paths=self.images['image_path'],bits_per_channel=bits_per_channel,use_mask=use_mask)
@@ -512,7 +569,8 @@ class ImageComplexity:
 
     def auls_measure(self, layer_index=-1, emb_type='efficient_net', n_samples=50, reduction_type='pca', reduction_method=None, n_components=10):
         '''
-        Calculate the AULS complexity measure based on the spectrum of the graph. 
+        Calculate the AULS complexity measure based on the spectrum of the graph. AULS is calculated using the eigenvalues of the Laplacian matrix derived from the similarity graph of the embeddings.
+        A lower AULS value indicates better class separability in the embedding space, while a higher value indicates more overlap between classes.
         
         Parameters:
         - layer_index (int): The index of the layer from which to extract embeddings. If -1 is specified, the final layer embeddings will be used.
@@ -541,7 +599,8 @@ class ImageComplexity:
 
     def csg_measure(self, layer_index=-1, emb_type='efficient_net', n_samples=50, reduction_type='pca', reduction_method=None, n_components=10, auls=False):
         '''
-        Calculate the CSG complexity measure based on the spectrum of the graph. 
+         Calculate the CSG complexity measure based on the spectrum of the graph. CSG is calculated using the eigenvalues of the Laplacian matrix derived from the similarity graph of the embeddings.
+        A lower CSG value indicates better class separability in the embedding space, while a higher value indicates more overlap between classes.
         
         Parameters:
         - layer_index (int): The index of the layer from which to extract embeddings. If -1 is specified, the final layer embeddings will be used.
@@ -590,7 +649,10 @@ class ImageComplexity:
 
     def plot_overlap_measures(self, cls='average'):
         '''
-        Wrapper for overlap measure visualization.
+        Plot the overlap measures stored in a dictionary as a bar chart. cls can be set to a specific class to plot the measures for that class, or set to 'average' to plot the average values of the measures across all classes.
+
+        Parameters:
+        - cls (str): The class for which to plot the overlap measures. If 'average', the average values of the measures across all classes will be plotted. Default is 'average'.
         '''
 
         plot_overlap_measures(overlap_measures=self.overlap_measures_dic, labels=self.images['class'], cls=cls)
@@ -598,7 +660,7 @@ class ImageComplexity:
 
     def plot_intrinsic_measures(self):
         '''
-        Wrapper for intrinsic measure visualization.
+        Plot the intrinsic measures stored in the dataframe as a bar chart.
         '''
 
         plot_intrinsic_measures(images_df=self.images)
@@ -606,7 +668,15 @@ class ImageComplexity:
 
     def plot_tsne(self, embs=None, save_image=False, name="tsne_plot.png", folder="./"):
         '''
-        Wrapper for t-SNE visualization.
+        Plot a t-SNE visualization of feature embeddings. If embs is not provided, it will use the feature embeddings stored in self.feature_embeddings. If no embeddings are found, it will raise a ValueError. 
+        The plot will be saved to the specified folder with the given name if save_image is True.
+
+        Parameters:
+        - embs (np.ndarray): The feature embeddings to visualize. If None, the method will use self.feature_embeddings.
+        - save_image (bool): Whether to save the t-SNE plot as an image file. Default is False.
+        - name (str): The name of the image file to save the plot. Default is "tsne_plot.png".
+        - folder (str): The folder path where the image file will be saved if save_image is True. Default is "./".
+
         '''
 
         embeddings = embs if embs is not None else self.feature_embeddings
@@ -619,7 +689,10 @@ class ImageComplexity:
 
     def visualize_metrics_per_class(self, metric_name):
         '''
-        Wrapper for metric-per-class visualization.
+        Visualize the average values of a specific intrinsic measure for each class as a bar plot.  
+        Parameters:
+        - metric_name (str): The name of the intrinsic measure to visualize. This should correspond to a column in the self.images DataFrame that contains the calculated values for that measure. The method will calculate the average value of the specified measure for each class and create a bar plot to visualize the differences between classes.
+
         '''
 
         visualize_metrics_per_class(images_df=self.images, metric_name=metric_name)
@@ -627,7 +700,18 @@ class ImageComplexity:
 
     def visualize_measure_distribution(self, measure="entropy", n=10, figsize=(15, 6), seed=None, by_class=False):
         '''
-        Wrapper for complexity distribution visualization.
+        Method to visualize the images in a dataset
+        based on their measured complexity.
+
+        Images are presented in 3 Rows,
+        corresponding to High, Medium and Low Complexity.
+
+        Parameters:
+        - measure (str): The name of the intrinsic measure to use for visualizing the distribution. This should correspond to a column in the self.images DataFrame that contains the calculated values for that measure.
+        - n (int): The number of images to display for each complexity level (High, Medium, Low). Default is 10.
+        - figsize (tuple): The size of the figure for the plot. Default is (15, 6).
+        - seed (int): The random seed for reproducibility when selecting images to display. Default is None, which means that the selection will be random each time the method is called.
+        - by_class (bool): Whether to visualize the distribution of the measure separately for each class. If True, the method will create separate plots for each class, showing the distribution of the specified measure within each class. If False, a single plot will be created showing the overall distribution of the measure across all classes. Default is False.
         '''
 
         visualize_measure_distribution(images_df=self.images, measure=measure, n=n, figsize=figsize, seed=seed, by_class=by_class)
@@ -635,7 +719,12 @@ class ImageComplexity:
 
     def visualize_specific_images(self, image_list, measure="entropy", figsize=(15, 3)):
         '''
-        Wrapper for visualizing specific images.
+        Visualize a specific list of images along with their corresponding values for a specified intrinsic measure. The method will create a plot displaying the selected images and annotate each image with its value for the specified measure.
+
+        Parameters:
+        - image_list (list): A list of image paths to visualize. Each path should correspond to an image in the dataset that has a calculated value for the specified measure in the self.images DataFrame.
+        - measure (str): The name of the intrinsic measure to display for each image. This should correspond to a column in the self.images DataFrame that contains the calculated values for that measure. The method will annotate each image with its value for this measure.
+        - figsize (tuple): The size of the figure for the plot. Default is (15, 3).
         '''
 
         visualize_specific_images(images_df=self.images, image_list=image_list, measure=measure, figsize=figsize)

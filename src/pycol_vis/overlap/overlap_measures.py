@@ -7,6 +7,20 @@ from pycol_complexity import complexity as pycol_complexity
 from .overlap_utils import compute_normalized_matrices,compute_m_sep_direct,compute_m_var,compute_similarity_matrix_S,compute_adjacency_matrix_W,compute_laplacian_matrix_L,compute_spectrum,compute_csg_complexity,compute_AULS_complexity,compute_cmsAULS_complexity
 
 def m_var_measure(embeddings, labels):
+    '''
+    Compute the M_var measure of class variability in the embedding space.
+
+    M_var is calculated using the normalized within-class scatter matrix (S_w_hat) in the embedding space, which captures the variability of samples within each class. 
+    A lower M_var value indicates that samples within the same class are more tightly clustered together, suggesting better class separability.
+
+    Parameters:
+    - embeddings (np.ndarray): The feature embeddings of the samples in the dataset.
+    - labels (np.ndarray): The class labels corresponding to each sample in the dataset.
+
+    Returns:
+    - float: The calculated M_var measure, which quantifies the variability of samples within each class in the embedding space. A lower value indicates better class separability.
+    '''
+
 
     S_w_hat, S_b_hat = compute_normalized_matrices(embeddings, labels)
 
@@ -16,7 +30,19 @@ def m_var_measure(embeddings, labels):
 
 
 def m_sep_measure(embeddings, labels):
+    '''
+    Compute the M_sep measure of class separability in the embedding space.
+    M_sep is calculated using the normalized within-class scatter matrix (S_w_hat) and the normalized between-class scatter matrix (S_b_hat) in the embedding space.
 
+    Parameters:
+    - embeddings (np.ndarray): The feature embeddings of the samples in the dataset.
+    - labels (np.ndarray): The class labels corresponding to each sample in the dataset.
+
+    Returns:
+    - float: The calculated M_sep measure, which quantifies the separability of classes in the embedding space. A higher value indicates better class separability.
+    
+    
+    '''
     S_w_hat, S_b_hat = compute_normalized_matrices(embeddings, labels)
 
     m_sep = compute_m_sep_direct(S_w_hat, S_b_hat)
@@ -25,6 +51,20 @@ def m_sep_measure(embeddings, labels):
 
 
 def tabular_measure(embeddings, labels, measure='kdn'):
+    '''
+    Calculate overlap measures using the pycol complexity libray.
+
+    A lower value of the meaure indicates better class separability in the embedding space, while a higher value indicates more overlap between classes.
+
+    Parameters:
+    - embeddings (np.ndarray): The feature embeddings of the samples in the dataset.
+    - labels (np.ndarray): The class labels corresponding to each sample in the dataset.
+    - measure (str): The complexity measure to calculate. Options are 'n2', 'kdn', or 'lsc'.
+
+    Returns:
+    - float: The calculated complexity measure value for the given embeddings and labels.
+    '''
+     
 
     dataset_dic = {
         'X': embeddings,
@@ -51,6 +91,20 @@ def tabular_measure(embeddings, labels, measure='kdn'):
 
 
 def auls_measure(embeddings, labels, n_samples=50):
+    '''
+    Calculate the AULS complexity measure based on the spectrum of the graph. AULS is calculated using the eigenvalues of the Laplacian matrix derived from the similarity graph of the embeddings.
+    A lower AULS value indicates better class separability in the embedding space, while a higher value indicates more overlap between classes.
+
+    Parameters:
+    - embeddings (np.ndarray): The feature embeddings of the samples in the dataset.
+    - labels (np.ndarray): The class labels corresponding to each sample in the dataset.
+    - n_samples (int): The number of samples to use for calculating the similarity matrix. Default is 50.
+
+    Returns:
+    - float: The calculated AULS complexity measure value for the given embeddings and labels.
+    
+    '''
+
 
     similarity_matrix_S = compute_similarity_matrix_S(embeddings,labels,np.unique(labels),n_samples=n_samples)
 
