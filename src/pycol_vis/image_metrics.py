@@ -67,8 +67,15 @@ class ImageComplexity:
 
         if(emb_type != "CNN"):
             self.model = None
-
-        self.feature_embeddings = embed_images(image_paths=self.images['image_path'], emb_type=emb_type, model=self.model, layer_index=layer_index, num_workers=num_workers)
+        
+        
+        if(emb_type == 'current'):
+            if(self.feature_embeddings is None):
+                print("No current embeddings found.")
+                return None
+            return self.feature_embeddings
+        else:
+            self.feature_embeddings = embed_images(image_paths=self.images['image_path'], emb_type=emb_type, model=self.model, layer_index=layer_index, num_workers=num_workers)
         return self.feature_embeddings  
 
 

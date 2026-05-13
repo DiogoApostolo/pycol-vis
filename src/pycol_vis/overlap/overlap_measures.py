@@ -120,6 +120,19 @@ def auls_measure(embeddings, labels, n_samples=50):
 
 
 def csg_measure(embeddings, labels, n_samples=50, auls=False):
+    '''
+    Calculate the CSG complexity measure based on the spectrum of the graph. CSG is calculated using the eigenvalues of the Laplacian matrix derived from the similarity graph of the embeddings.
+    A lower CSG value indicates better class separability in the embedding space, while a higher value indicates more overlap between classes.
+
+    Parameters:
+    - embeddings (np.ndarray): The feature embeddings of the samples in the dataset.
+    - labels (np.ndarray): The class labels corresponding to each sample in the dataset.
+    - n_samples (int): The number of samples to use for calculating the similarity matrix. Default is 50.
+    - auls (bool): Whether to calculate the CMS-AULS complexity measure instead of CSG. If True, the CMS-AULS measure will be calculated using the eigenvalues of the Laplacian matrix. Default is False.
+
+    Returns:
+    - float: The calculated CSG complexity measure value for the given embeddings and labels. If auls is True, the calculated CMS-AULS complexity measure value will be returned instead.
+    '''
 
     similarity_matrix_S = compute_similarity_matrix_S(embeddings,labels,np.unique(labels),n_samples=n_samples)
 
