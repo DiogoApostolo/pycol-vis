@@ -1,5 +1,5 @@
 from pycol_vis.image_metrics import ImageComplexity
-from pycol_vis.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
+from pycol_vis.classifiers.classifiers import cnn_classifier, svm_classifier, nn_classifier, knn_classifier, xgb_classifier
 
 '''
 Model Selection use case example. In this example we embed the images using an efficient net and then train different classifiers on the embeddings and evaluate the accuracy.
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     folder = "./" + dataset +  "/train/"
 
     #classes = ["Circle","Square","Triangle"]
-    classes = ["COVID19","PNEUMONIA"]
+    classes = ["COVID19","PNEUMONIA","NORMAL"]
 
     depth = 1
     epochs = 1
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     accuracy_nn = nn_classifier(X_train,y_train,X_test,y_test)
     accuracy_knn = knn_classifier(X_train,y_train,X_test,y_test)
     accuracy_xgb = xgb_classifier(X_train,y_train,X_test,y_test)
-
+    accuracy_cnn = cnn_classifier(X_train,y_train,X_test,y_test)
 
     print("Train kDN Score:", metric_train)
     print("Test kDN Score:", metric_test)
@@ -60,3 +60,4 @@ if __name__ == "__main__":
     print("NN Accuracy:", accuracy_nn)
     print("KNN Accuracy:", accuracy_knn)
     print("XGB Accuracy:", accuracy_xgb)
+    print("CNN Accuracy:", accuracy_cnn)

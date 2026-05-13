@@ -1,5 +1,5 @@
 from pycol_vis.image_metrics import ImageComplexity
-from pycol_vis.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
+from pycol_vis.classifiers.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
 
 
 '''
@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     #Get the jpeg compression ratio for each image and sample the dataset based on that
     complexity_train.jpeg_compression_ratio()
-    complexity_train.sample_dataset(n_samples_per_class=N_SAMPLES_PER_CLASS,sample_type='jpeg_compression')
+    complexity_train.sample_dataset(n_samples_per_class=N_SAMPLES_PER_CLASS, sample_type='jpeg_compression')
 
     #Embed the images and reduce the dimensionality of the embeddings
     complexity_train.embed_images(emb_type='efficient_net')

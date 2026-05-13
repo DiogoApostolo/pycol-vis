@@ -1,5 +1,5 @@
 from pycol_vis.image_metrics import ImageComplexity
-from pycol_vis.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
+from pycol_vis.classifiers.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
 
 
 '''
@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
     folder = "./" + dataset +  "/test/"
 
-    complexity_test = ImageComplexity(folder,keep_classes=classes,number_per_class=400)
+    complexity_test = ImageComplexity(folder,keep_classes=classes,number_per_class=100)
     complexity_test.embed_images(emb_type='efficient_net')
     complexity_test.feature_embeddings = complexity_test.dim_reduction(complexity_test.feature_embeddings,method='custom',custom_method=reduction_method)
 
