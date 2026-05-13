@@ -63,7 +63,10 @@ class ImageComplexity:
         - layer_index (int): The index of the layer from which to extract embeddings if emb_type is 'CNN'. If -1 is specified, the final layer embeddings will be used.
         - num_workers (int): The number of worker processes to use for parallel embedding generation. Default is 0, which means that the embedding generation will be performed in the main process.
         '''
-
+        
+        #check if emb_type is valid
+        if(emb_type not in ["raw", "CNN", "efficient_net", "mobile_net", "current"]):
+            raise ValueError("Invalid embedding type. Supported types are: 'raw', 'CNN', 'efficient_net', 'mobile_net', 'current'.")
 
         if(emb_type != "CNN"):
             self.model = None

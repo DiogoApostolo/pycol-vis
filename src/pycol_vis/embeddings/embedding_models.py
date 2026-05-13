@@ -204,7 +204,7 @@ class CNNEmbeddingModel():
         self.model = Model(inputs=inputs, outputs=x_conv)
         self.model_to_train.compile(optimizer='adam', loss='categorical_crossentropy')
 
-    def get_feature_embeddings_all(self,images,layer_index=-1,batch_size=32):
+    def get_feature_embeddings_all(self,image_paths,layer_index=-1,batch_size=32):
         '''
         Auxiliary function to embed_images, it is used for the case of non-pre trained models.
 
@@ -213,22 +213,23 @@ class CNNEmbeddingModel():
         The embeddings are extracted from the specified layer of the model.
 
         Parameters:
-        layer_index (int): The index of the layer from which to extract the embeddings. Use -1 for the last feature layer.
-        batch_size (int): The number of images to process in each batch when extracting embeddings.
+        -image_paths (list): A list of paths to the images for which to extract the feature embeddings. Each path should correspond to an image in the dataset that has been loaded and preprocessed according to the requirements of the model.
+        -layer_index (int): The index of the layer from which to extract the embeddings. Use -1 for the last feature layer.
+        -batch_size (int): The number of images to process in each batch when extracting embeddings.
 
         Returns:
         np.ndarray: A NumPy array containing the extracted feature embeddings for all images in the dataset.
         '''
 
         embeddings = []
-        num_images = len(images)
+        num_images = len(image_paths)
 
         for batch_start_inx in range(0, num_images, batch_size):
             batch_end_inx = min(batch_start_inx + batch_size, num_images)
             batch_images = []
 
             for i in range(batch_start_inx, batch_end_inx):
-                image = cv2.imread(images['image_path'].iloc[i])
+                image = cv2.imread(image_paths[i])
 
                 #resize to match the avg image size of the dataset
                 image = cv2.resize(image, (self.model.input_shape[2], self.model.input_shape[1]))
@@ -246,7 +247,7 @@ class CNNEmbeddingModel():
             embeddings.extend(features)
 
         
-        return np.array(embeddings).reshape(len(images), -1)
+        return np.array(embeddings).reshape(len(image_paths), -1)
 
     def get_feature_embeddings(self,image,layer_index=-1):
         '''
