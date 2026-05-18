@@ -163,8 +163,10 @@ def embed_images(image_paths, feature_embeddings=None, model=None, emb_type='eff
         print("Extracting CNN embeddings...")
         embeddings = model.get_feature_embeddings_all(image_paths=image_paths, layer_index=layer_index)
 
-    else:
+    elif(emb_type in EMBEDDING_MODELS):
         print(f"Extracting {emb_type} embeddings...")
         embeddings = generate_embeddings(image_paths=image_paths, emb_type=emb_type, num_workers=num_workers)
+    else:
+        raise ValueError(f"Unknown embedding type: {emb_type}")
 
     return embeddings

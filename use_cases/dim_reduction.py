@@ -84,7 +84,7 @@ if __name__ == "__main__":
         print("Reduction method used:")
         print(reduction_method)
 
-        measure = complexity_train.csg_measure(emb_type="current",n_samples=2000, reduction_type='custom', reduction_method=reduction_method,auls=True)
+        measure = complexity_train.csg_measure(emb_type="current",n_samples=1500, reduction_type='custom', reduction_method=reduction_method,auls=False)
         #measure = complexity_train.m_sep_measure(emb_type="current", reduction_type='custom', reduction_method=reduction_method)
         #measure = complexity_train.tabular_measure(emb_type="current", measure="kDN" , reduction_type='custom', reduction_method=reduction_method)
 
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         complexity_test.feature_embeddings = complexity_test.dim_reduction(test_embeddings_original,method='custom',custom_method=reduction_method)
 
 
-        measure_test = complexity_test.csg_measure(emb_type="current",n_samples=2000, reduction_type='custom', reduction_method=reduction_method,auls=True)
+        measure_test = complexity_test.csg_measure(emb_type="current",n_samples=1500, reduction_type='custom', reduction_method=reduction_method,auls=False)
         #measure_test = complexity_test.m_sep_measure(emb_type="current", reduction_type='custom', reduction_method=reduction_method)
         #measure_test = complexity_test.tabular_measure(emb_type="current", measure="kDN" , reduction_type='custom', reduction_method=reduction_method)
 

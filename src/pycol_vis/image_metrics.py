@@ -27,8 +27,47 @@ from .visualization import plot_overlap_measures,plot_intrinsic_measures,plot_ts
 
 
 class ImageComplexity:
-    def __init__(self, folder, keep_classes = 'all', number_per_class= -1, use_keras_dataset=False, set_size=None):
-        self.use_keras_dataset = use_keras_dataset
+    def __init__(self, folder, keep_classes = 'all', number_per_class= -1, set_size=None):
+        '''
+        Initialize the ImageComplexity class by loading images from the specified folder and setting up the necessary attributes for further analysis. 
+        The method validates the input parameters, loads the images, and prepares the dataset for embedding generation and complexity analysis.
+
+        Parameters:
+        - folder (str): The path to the folder containing the image dataset. The folder should be organized with subdirectories for each class, where each subdirectory contains the images belonging to that class.
+        - keep_classes (str or list): Specifies which classes to keep in the dataset. If set to 'all', all classes will be included. If set to a list of class labels, only those classes will be retained in the dataset.
+        - number_per_class (int): The number of samples to include for each class. If set to -1, all samples from each class will be included. If set to a positive integer, only that many samples will be randomly selected from each class.
+        - set_size (tuple or None): The desired size for the images in the dataset, specified as a tuple (height, width, channels). If set to None, the average image shape will be calculated from the loaded images and used as the image shape for further processing.
+        
+        '''
+
+        if(number_per_class != -1 and number_per_class <= 0):
+            raise ValueError("number_per_class must be a positive integer or -1 for all samples.")
+        
+        if(keep_classes != 'all' and not isinstance(keep_classes, list)):
+            raise ValueError("keep_classes must be 'all' or a list of class labels to keep.")
+        
+        if(keep_classes != 'all' and isinstance(keep_classes, list) and len(keep_classes) == 0):
+            raise ValueError("keep_classes list cannot be empty if keep_classes is not 'all'.")
+        
+        if(set_size != None and (not isinstance(set_size, tuple) or len(set_size) != 3)):
+            raise ValueError("set_size must be a tuple of the form (height, width, channels) or None.")
+        
+        if(set_size != None and (not all(isinstance(x, int) and x > 0 for x in set_size))):
+            raise ValueError("All values in set_size must be positive integers.")
+        
+        if(not os.path.exists(folder) or not os.path.isdir(folder)):
+
+            raise ValueError("The specified folder does not exist or is not a directory.")
+        
+        if(keep_classes != 'all'):
+            if(not os.path.exists(folder) or not os.path.isdir(folder)):
+                raise ValueError("The specified folder does not exist or is not a directory.")
+            available_classes = [d for d in os.listdir(folder) if os.path.isdir(os.path.join(folder, d))]
+            for cls in keep_classes:
+                if cls not in available_classes:
+                    raise ValueError(f"Class '{cls}' specified in keep_classes does not exist in the dataset folder.")
+        
+
         self.images = load_images(folder,keep_classes,number_per_class)
 
         if(set_size==None):

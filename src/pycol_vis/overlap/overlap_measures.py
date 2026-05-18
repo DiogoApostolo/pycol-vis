@@ -163,7 +163,7 @@ def csg_measure(embeddings, labels, n_samples=50, auls=False, normalize_density=
     if(n_samples <= 0):
         raise ValueError("n_samples must be a positive integer.")
     
-    if(n_samples > 1000):
+    if(n_samples > 2000):
         print("Warning: n_samples is set to a high value, which may lead to long computation times. Consider reducing n_samples for faster results.")
 
     if(n_samples < 20):
@@ -176,17 +176,24 @@ def csg_measure(embeddings, labels, n_samples=50, auls=False, normalize_density=
 
     embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
 
-    similarity_matrix_S = compute_similarity_matrix_S(embeddings,labels,np.unique(labels),n_samples=n_samples,normalize_density=normalize_density)
+    similarity_matrix_S = compute_similarity_matrix_S(embeddings,labels,np.unique(labels),n_samples=n_samples)
+
+
+
+    
 
     W = compute_adjacency_matrix_W(similarity_matrix_S)
+
+    
+
     L, D = compute_laplacian_matrix_L(W)
 
     eigenvalues, eigenvectors = compute_spectrum(L)
-    #eigenvalues = eigenvalues / np.sum(eigenvalues)
     if(auls):
         measure = compute_cmsAULS_complexity(eigenvalues)
 
     else:
         measure = compute_csg_complexity(eigenvalues)
 
+   
     return measure

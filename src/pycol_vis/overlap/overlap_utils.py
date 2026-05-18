@@ -124,7 +124,7 @@ def average_knn_distance(query_points, reference_points, k_neighbors=5):
     return avg_distances
 
 
-def knn_density_estimation(query_points, reference_points, k_neighbors=5,normalize_density=True):
+def knn_density_estimation(query_points, reference_points, k_neighbors=5,normalize_density=True, log_scale=False):
 
     if(len(reference_points) < k_neighbors):
         k = len(reference_points)
@@ -134,30 +134,35 @@ def knn_density_estimation(query_points, reference_points, k_neighbors=5,normali
     knn = NearestNeighbors(n_neighbors=k, algorithm='auto')
 
     knn.fit(reference_points)
+
     distances, _ = knn.kneighbors(query_points)
+
     d = reference_points.shape[1]
 
     if(normalize_density):
-        volumes = (distances[:, -1] * 2)
+        log_volumes = np.log((distances[:, -1] * 2) + 1e-12)
     else:
-        volumes = (distances[:, -1] * 2) ** d
-    volumes = np.maximum(volumes, 1e-10)
+        log_volumes = d * np.log((distances[:, -1] * 2) + 1e-12)
 
-    n_ref = len(reference_points)
-    densities = k / (n_ref * volumes)
+    log_densities = np.log(k) - np.log(len(reference_points)) - log_volumes
+    log_densities = log_densities - np.max(log_densities)
+    if(log_scale):
+        return log_densities
+
+    densities = np.exp(log_densities)
 
     return densities
 
 
-def compute_pairwise_similarity(embeddings_i, embeddings_j, n_samples=50,normalize_density=False,use_distance=True,sigma=None):
+def compute_pairwise_similarity(embeddings_i, embeddings_j, n_samples=50,normalize_density=False,use_distance=False,sigma=None):
 
     inxs = np.random.choice(len(embeddings_i), min(n_samples, len(embeddings_i)), replace=False)
     monte_carlo_samples = embeddings_i[inxs]
     
     if(not use_distance):
-        probabilities = knn_density_estimation( monte_carlo_samples, embeddings_j, normalize_density=False )
+        probabilities = knn_density_estimation( monte_carlo_samples, embeddings_j, normalize_density=False, log_scale=True)
         similarity = np.mean(probabilities)
-
+        similarity = np.exp(similarity)  
     else:
         
 
@@ -166,7 +171,7 @@ def compute_pairwise_similarity(embeddings_i, embeddings_j, n_samples=50,normali
         if(sigma == None):
             sigma = np.mean(distance)
 
-        similarity = np.mean(np.exp(-distance))
+        similarity = np.mean(np.exp(-(distance)))
 
 
     return similarity
@@ -217,9 +222,11 @@ def compute_adjacency_matrix_W(similarity_matrix_S):
     return adjacency_matrix_W
 
 
-def compute_laplacian_matrix_L(adjacency_matrix_W, normalized=True):
+def compute_laplacian_matrix_L(adjacency_matrix_W, normalized=False):
 
     degree_matrix_D = np.diag(np.sum(adjacency_matrix_W, axis=1))
+
+    
 
     if(normalized):
         d_inv_sqrt = np.diag(1.0 / np.sqrt(np.diag(degree_matrix_D) + 1e-10))

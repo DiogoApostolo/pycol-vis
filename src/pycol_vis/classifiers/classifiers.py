@@ -24,14 +24,14 @@ def nn_classifier(X_train, y_train, X_test, y_test):
     
     
 
-    clf = MLPClassifier(hidden_layer_sizes=(100,), max_iter=300, random_state=42)
+    clf = MLPClassifier(hidden_layer_sizes=(200,), max_iter=1000, random_state=42)
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
 
     return accuracy
 
-
+\
 def knn_classifier(X_train, y_train, X_test, y_test, n_neighbors=5):
 
     clf = KNeighborsClassifier(n_neighbors=n_neighbors)
@@ -67,11 +67,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 
-# Set random seed for reproducibility
 torch.manual_seed(42)
 np.random.seed(42)
 
-# Device configuration (Global helper)
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -108,9 +106,7 @@ class PathDataset(Dataset):
         return image, label
 
 
-# =====================================================================
-# A RESIDUAL BLOCK (The secret sauce behind modern, powerful CNNs)
-# =====================================================================
+
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
         super(ResidualBlock, self).__init__()
@@ -136,9 +132,6 @@ class ResidualBlock(nn.Module):
         out = self.relu(out)
         return out
 
-# =====================================================================
-# THE MODERN UPGRADED CNN CLASSIFIER
-# =====================================================================
 class CNNClassifier(nn.Module):
     def __init__(self, num_classes):
         super(CNNClassifier, self).__init__()
@@ -151,11 +144,11 @@ class CNNClassifier(nn.Module):
         )
         
         # Deeper layers processing complex spatial features
-        self.layer1 = ResidualBlock(32, 64, stride=2)   # Spatial size: 64x64 -> 32x32
-        self.layer2 = ResidualBlock(64, 128, stride=2)  # Spatial size: 32x32 -> 16x16
-        self.layer3 = ResidualBlock(128, 256, stride=2) # Spatial size: 16x16 -> 8x8
+        self.layer1 = ResidualBlock(32, 64, stride=2)  
+        self.layer2 = ResidualBlock(64, 128, stride=2)  
+        self.layer3 = ResidualBlock(128, 256, stride=2) 
         
-        # Global Average Pooling replaces massive flat linear layers to reduce parameter explosions
+        
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         
         # Output Classification Layer
@@ -172,7 +165,7 @@ class CNNClassifier(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.avg_pool(x)
-        x = torch.flatten(x, 1) # Flattens seamlessly to (batch_size, 256)
+        x = torch.flatten(x, 1) 
         return self.fc(x)
 
 
@@ -225,7 +218,7 @@ def predict_on_test_df(model, test_df, transform, batch_size=16):
     test_dataset = PathDataset(test_df, transform=transform)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
-    model.eval()  # Set model to evaluation mode
+    model.eval()  
     all_predictions = []
     
     print("Running predictions on test dataset...")
@@ -236,25 +229,21 @@ def predict_on_test_df(model, test_df, transform, batch_size=16):
             outputs = model(batch_images)
             _, predicted = torch.max(outputs, 1)
             
-            # Move predictions back to CPU and collect them
             all_predictions.extend(predicted.cpu().numpy())
             
     return all_predictions
 
 
 def cnn_classifier(df, test_df):
-    # 1. Make local copies so we don't accidentally modify your original dataframes
     df = df.copy()
     test_df = test_df.copy()
 
-    # 2. Convert text classes ('Triangle', etc.) to numerical codes (0, 1, 2...)
     df['class'] = df['class'].astype('category')
     class_mapping = df['class'].cat.categories
     
     df['class'] = df['class'].cat.codes
     test_df['class'] = pd.Categorical(test_df['class'], categories=class_mapping).codes
 
-    # 3. Define transformations and dynamically assign number of classes
     data_transforms = transforms.Compose([
         transforms.Resize((64, 64)),
         transforms.ToTensor(),
@@ -263,19 +252,15 @@ def cnn_classifier(df, test_df):
 
     NUM_CLASSES = len(class_mapping)
 
-    # 4. Set up the train dataset and loader
     train_dataset = PathDataset(df, transform=data_transforms)
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     
     try:
-        # 5. Train and Predict
         trained_model = train_cnn(train_loader, num_classes=NUM_CLASSES, epochs=25)
         y_pred = predict_on_test_df(trained_model, test_df, transform=data_transforms, batch_size=32)
 
-        # 6. Extract the true labels (which are now numerical codes matching y_pred)
         y_true = test_df['class'].tolist()
 
-        # 7. Calculate and return accuracy
         accuracy = accuracy_score(y_true, y_pred)
         return accuracy
 
