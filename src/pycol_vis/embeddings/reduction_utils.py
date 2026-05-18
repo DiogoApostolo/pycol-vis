@@ -21,7 +21,17 @@ def dim_reduction(embs,method='pca',n_components=50,custom_method=None,return_mo
         - object (optional): The fitted dimensionality reduction model, returned if return_model is True
     '''
 
-
+    if(embs is None or len(embs) == 0):
+        raise ValueError("embs cannot be None or empty.")
+    if(method not in ['pca', 'tsne', 'custom']):
+        raise ValueError("method must be one of 'pca', 'tsne', or 'custom'.")
+    if(method == 'custom' and custom_method is None):
+        raise ValueError("custom_method must be provided when method='custom'.")
+    if(n_components <= 0):
+        raise ValueError("n_components must be a positive integer.")
+    if(method == 'custom' and not hasattr(custom_method, 'fit_transform')):
+        raise ValueError("custom_method must have a fit_transform method.")
+    
 
     
     if(method == "pca"):

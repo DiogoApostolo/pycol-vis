@@ -15,11 +15,11 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Input
 from tensorflow.keras.layers import Activation, Dropout, Flatten, Dense, Conv2D, MaxPooling2D
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import EarlyStopping
 
 import cv2
 
+from tensorflow.keras.utils import to_categorical
 
 class ConvAutoencoder:
     def __init__(self, input_shape=(28, 28, 1), latent_dim=32):
@@ -202,7 +202,7 @@ class CNNEmbeddingModel():
         self.model_to_train = Model(inputs=inputs, outputs=x_dense_2)
         self.model_all_layers = [Model(inputs=inputs, outputs=x) for x in layers]
         self.model = Model(inputs=inputs, outputs=x_conv)
-        self.model_to_train.compile(optimizer='adam', loss='categorical_crossentropy')
+        self.model_to_train.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
     def get_feature_embeddings_all(self,image_paths,layer_index=-1,batch_size=32):
         '''
@@ -293,25 +293,37 @@ class CNNEmbeddingModel():
             class_mode='categorical',
             shuffle=True
         )
-        
+
+        self.class_indices = train_generator.class_indices
         self.model_to_train.fit(train_generator, epochs=epochs)
         self.is_trained = True
         return
         
+    def perform_classification(self,image_paths,target):
         '''
-        if(network_type=="CAE"):
-            #load images for CAE
-            for name in self.images['image_path']:
-                image = self.load_image(name, convert_rgb=True)
-                image = cv2.resize(image, (self.image_shape[1], self.image_shape[0]))
-                image = image.astype('float32') / 255.0
-                if 'x_data' not in locals():
-                    x_data = np.expand_dims(image, axis=0)
-                else:
-                    x_data = np.vstack((x_data, np.expand_dims(image, axis=0)))
+        Perform classification on the dataset using the trained model. This function is used to evaluate the performance of the model on the classification task.
 
-
-            self.model_to_train.fit(x_data, x_data, epochs=epochs,batch_size=32)
-            self.is_trained = True
-            return
+        Returns:
+        float: The accuracy of the model on the classification task.
         '''
+
+        images = []
+
+        for path in image_paths:
+
+            image = cv2.imread(path)
+            image = cv2.resize(image,(self.model.input_shape[2],self.model.input_shape[1]))
+
+            images.append(image)
+
+        images = np.array(images).astype(np.float32) / 255.0
+
+        target = [self.class_indices[label] for label in target]
+        target = to_categorical(target,num_classes=self.num_classes)
+
+        perf = self.model_to_train.evaluate(images,target,verbose=0)
+
+        print("Test Loss:",perf[0])
+        print("Test Accuracy:",perf[1])
+
+        return perf[1]

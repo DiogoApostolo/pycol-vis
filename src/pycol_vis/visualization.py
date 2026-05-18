@@ -16,6 +16,8 @@ from sklearn.manifold import TSNE
 
 from .utils.utils import load_image
 
+import pandas as pd
+import os
 
 def plot_overlap_measures(overlap_measures, labels=None, cls='average'):
     '''
@@ -29,6 +31,21 @@ def plot_overlap_measures(overlap_measures, labels=None, cls='average'):
       the average values of the measures will be plotted.
     '''
     
+
+    if(cls != 'average' and labels is None):
+        raise ValueError("labels must be provided when cls is not 'average'")
+    if(cls != 'average' and cls not in labels):
+        raise ValueError(f"cls '{cls}' not found in labels")
+    if(not isinstance(overlap_measures, dict)):
+        raise ValueError("overlap_measures must be a dictionary")
+    if(len(overlap_measures) == 0):
+        raise ValueError("overlap_measures dictionary cannot be empty")
+    if(labels is not None and len(labels) != len(next(iter(overlap_measures.values())))):
+        raise ValueError("Length of labels must match the length of measure values in overlap_measures")
+    
+
+
+
     measures = list(overlap_measures.keys())
     values = list(overlap_measures.values())
 
@@ -59,6 +76,14 @@ def plot_intrinsic_measures(images_df):
     Parameters:
     - images_df (pd.DataFrame): DataFrame containing image metrics.
     '''
+
+    if(not isinstance(images_df, pd.DataFrame)):
+        raise ValueError("images_df must be a pandas DataFrame")
+    if('image_path' not in images_df.columns or 'class' not in images_df.columns):
+        raise ValueError("images_df must contain 'image_path' and 'class' columns")
+    if(len(images_df) == 0):
+        raise ValueError("images_df cannot be empty")
+    
 
     intrinsic_measures = [col for col in images_df.columns if col not in ['image_path', 'class']]
     intrinsic_measures_dic = {}
@@ -91,6 +116,18 @@ def plot_tsne(embeddings, labels, save_image=False, name="tsne_plot.png", folder
     - name (str): The name of the image file to save the plot. Default is "tsne_plot.png".
     - folder (str): The folder path where the image file will be saved if save_image is True. Default is "./".
     '''
+
+    if(embeddings is None or len(embeddings) == 0):
+        raise ValueError("embeddings cannot be None or empty.")
+    if(labels is None or len(labels) == 0):
+        raise ValueError("labels cannot be None or empty.")
+    if(len(embeddings) != len(labels)):
+        raise ValueError("Length of embeddings and labels must match.")
+    if(save_image and (not isinstance(name, str) or not isinstance(folder, str))):
+        raise ValueError("name and folder must be strings when save_image is True.")
+    if(save_image and not os.path.exists(folder)):
+        raise ValueError(f"Folder '{folder}' does not exist. Please create it before saving the image.")
+    
 
     embeddings = np.array(embeddings)
     embeddings = embeddings.reshape(embeddings.shape[0], -1)
@@ -131,6 +168,20 @@ def visualize_metrics_per_class(images_df, metric_name):
     - metric_name (str): The name of the intrinsic measure to visualize. This should correspond to a column in the self.images DataFrame that contains the calculated values for that measure. The method will calculate the average value of the specified measure for each class and create a bar plot to visualize the differences between classes.
     '''
 
+    if(not isinstance(images_df, pd.DataFrame)):
+        raise ValueError("images_df must be a pandas DataFrame")
+    if('image_path' not in images_df.columns or 'class' not in images_df.columns):
+        raise ValueError("images_df must contain 'image_path' and 'class' columns")
+    if(metric_name not in images_df.columns):
+        raise ValueError(f"metric_name '{metric_name}' not found in images_df columns")
+    if(len(images_df) == 0):
+        raise ValueError("images_df cannot be empty")
+    if(metric_name in ['image_path', 'class']):
+        raise ValueError("metric_name cannot be 'image_path' or 'class'")
+    if(metric_name not in images_df.columns):
+        raise ValueError(f"metric_name '{metric_name}' not found in images_df columns")
+    
+
     existing_columns = images_df.columns.tolist()
 
     existing_columns.remove('image_path')
@@ -163,6 +214,26 @@ def visualize_measure_distribution(images_df, measure="entropy", n=10, figsize=(
     - seed (int): The random seed for reproducibility when selecting images to display. Default is None, which means that the selection will be random each time the method is called.
     - by_class (bool): Whether to visualize the distribution of the measure separately for each class. If True, the method will create separate plots for each class, showing the distribution of the specified measure within each class. If False, a single plot will be created showing the overall distribution of the measure across all classes. Default is False.
     '''
+
+    if(not isinstance(images_df, pd.DataFrame)):
+        raise ValueError("images_df must be a pandas DataFrame")
+    if('image_path' not in images_df.columns or 'class' not in images_df.columns):
+        raise ValueError("images_df must contain 'image_path' and 'class' columns")
+    if(measure not in images_df.columns):
+        raise ValueError(f"measure '{measure}' not found in images_df columns")
+    if(len(images_df) == 0):
+        raise ValueError("images_df cannot be empty")
+    if(n <= 0):
+        raise ValueError("n must be a positive integer")
+    if(seed is not None and not isinstance(seed, int)):
+        raise ValueError("seed must be an integer or None")
+    if(measure in ['image_path', 'class']):
+        raise ValueError("measure cannot be 'image_path' or 'class'")
+    if(measure not in images_df.columns):
+        raise ValueError(f"measure '{measure}' not found in images_df columns")
+    if(figsize is not None and (not isinstance(figsize, tuple) or len(figsize) != 2)):
+        raise ValueError("figsize must be a tuple of length 2 or None")
+    
 
     if(seed is not None):
         np.random.seed(seed)
@@ -233,6 +304,34 @@ def visualize_specific_images(images_df, image_list, measure="entropy", figsize=
     - measure (str): The name of the intrinsic measure to display for each image. This should correspond to a column in the self.images DataFrame that contains the calculated values for that measure. The method will annotate each image with its value for this measure.
     - figsize (tuple): The size of the figure for the plot. Default is (15, 3).
     '''
+
+    if(not isinstance(images_df, pd.DataFrame)):
+        raise ValueError("images_df must be a pandas DataFrame")
+    if('image_path' not in images_df.columns or 'class' not in images_df.columns):
+        raise ValueError("images_df must contain 'image_path' and 'class' columns")
+    if(measure not in images_df.columns):
+        raise ValueError(f"measure '{measure}' not found in images_df columns")
+    if(len(images_df) == 0):
+        raise ValueError("images_df cannot be empty")
+    if(not isinstance(image_list, list) or len(image_list) == 0):
+        raise ValueError("image_list must be a non-empty list of image paths")
+    if(measure in ['image_path', 'class']):
+        raise ValueError("measure cannot be 'image_path' or 'class'")
+    if(measure not in images_df.columns):
+        raise ValueError(f"measure '{measure}' not found in images_df columns")
+    if(figsize is not None and (not isinstance(figsize, tuple) or len(figsize) != 2)):
+        raise ValueError("figsize must be a tuple of length 2 or None")
+    if(not all(isinstance(path, str) for path in image_list)):
+        raise ValueError("All items in image_list must be strings representing image paths")
+    if(not all(path in images_df['image_path'].values for path in image_list)):
+        raise ValueError("All image paths in image_list must be present in the 'image_path' column of images_df")
+    if(not all(os.path.exists(path) for path in image_list)):
+        raise ValueError("All image paths in image_list must exist on the filesystem")
+    if(len(image_list) > 20):
+        print("Warning: Visualizing a large number of images may lead to a cluttered plot. Consider reducing the number of images for better visualization.")
+    
+
+    
 
     n_images = len(image_list)
     fig, axes = plt.subplots(1, n_images, figsize=figsize)

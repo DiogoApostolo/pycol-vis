@@ -9,7 +9,6 @@ import pandas as pd
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
 
 
-import torch
 
 
 
@@ -47,7 +46,7 @@ def get_average_image_shape(images):
         
 
 
-def load_images(folder,keep_classes,number_per_class): 
+def load_images(folder,keep_classes='all',number_per_class=-1): 
     '''
     Load images from a folder and create a DataFrame with the image paths and corresponding class labels
     
@@ -162,7 +161,7 @@ def convert_to_hsv(image):
 
 
 
-def sample_dataset(images, n_samples_per_class,sample_type='complexity'):
+def sample_dataset(images, n_samples_per_class,sample_type='random'):
     '''
     Sample the dataset based on the specified sampling type. Use either random sampling or the complexity meausures
     to select the most diverse/complex images from a dataset.
@@ -179,12 +178,17 @@ def sample_dataset(images, n_samples_per_class,sample_type='complexity'):
 
 
     if sample_type == 'random':
-        sampled_images = images.groupby('class', group_keys=True).apply(lambda x: x.sample(n=n_samples_per_class, random_state=42),include_groups=False).reset_index(level=0).reset_index(drop=True)
-    
+        sampled_images = (images.sample(frac=1, random_state=42).groupby('class').head(n_samples_per_class))
     elif sample_type == 'jpeg_compression':
-        sampled_images = images.groupby('class', group_keys=True).apply(lambda x: x.nsmallest(n_samples_per_class, 'jpeg_compression_ratio'),include_groups=False).reset_index(level=0).reset_index(drop=True)
+        sampled_images = images.sort_values('jpeg_compression').groupby('class').head(n_samples_per_class)
+    elif sample_type == 'entropy':
+        sampled_images = images.sort_values('entropy').groupby('class').head(n_samples_per_class)
 
-    return sampled_images
+    remaining_indexes = sampled_images.index.tolist()
+    sampled_images = sampled_images.reset_index(drop=True)
+
+
+    return sampled_images,remaining_indexes
 
 def select_channel(name, channel='all'):
     

@@ -38,6 +38,20 @@ def edge_density_canny(image_paths, low_threshold=0.11, high_threshold=0.27):
     - list: A list of edge density values for each image.
     '''
 
+    if(low_threshold < 0 or low_threshold > 1):
+        raise ValueError("low_threshold must be between 0 and 1.")
+    
+    if(high_threshold < 0 or high_threshold > 1):
+        raise ValueError("high_threshold must be between 0 and 1.")
+    
+    if(low_threshold >= high_threshold):
+        raise ValueError("low_threshold must be less than high_threshold.")
+    
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+    
+    
+
     density_array = []
 
     for name in image_paths:
@@ -73,6 +87,14 @@ def edge_density_sobel(image_paths, threshold=0.2):
 
     '''
 
+    if(threshold < 0 or threshold > 1):
+        raise ValueError("threshold must be between 0 and 1.")
+    
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+    
+    
+
     density_array = []
 
     for name in image_paths:
@@ -100,9 +122,14 @@ def hsv_std(image_paths):
     Parameters:
     - image_paths (list): List of image file paths.
     Returns:
-    - list: A list of standard deviation values for each channel of each image.
+    - tuple: A tuple containing lists of standard deviation values for each channel of each image.
     
     '''
+
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+    
+
     H_std, S_std, V_std = [], [], []
 
     for name in image_paths:
@@ -123,9 +150,13 @@ def hsv_mean(image_paths):
     Parameters:
     - image_paths (list): List of image file paths.
     Returns:
-    - pd.DataFrame: A DataFrame with the 'H_mean', 'S_mean', and 'V_mean' columns added, containing the average color values for each channel of each image.
+    - tuple: A tuple containing lists of average color values for each channel of each image.
     
     '''
+
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+
     H_mean, S_mean, V_mean = [], [], []
 
     for name in image_paths:
@@ -149,6 +180,10 @@ def rgb_mean(image_paths):
     Returns:
     - tuple: A tuple containing lists of average color values for each channel of each image.
     '''
+
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+
     R_means, G_means, B_means = [], [], []
 
     for name in image_paths:
@@ -169,10 +204,13 @@ def rgb_std(image_paths):
     Calculate the standard deviation of the RGB channels for each image specified in the image_paths lists.  
 
     Parameters:
-    - images_df (pd.DataFrame): DataFrame containing image paths and labels.
+    - image_paths (list): List of image file paths.
     Returns:
-    - pd.DataFrame: A DataFrame with the 'R_std', 'G_std', and 'B_std' columns added, containing the standard deviation values for each channel of each image.
+    - tuple: A tuple containing lists of standard deviation values for each channel of each image.
     '''
+
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
 
     R_std, G_std, B_std = [], [], []
 
@@ -199,6 +237,9 @@ def entropy_measure(image_paths):
     Returns:
     - list: A list of entropy values for each image.
     '''
+
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
 
 
     entropy_array = []
@@ -231,6 +272,9 @@ def energy_measure(image_paths):
     - list: A list of energy values for each image.
     '''
 
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+
     energy_array_spacial = []
 
     for image_path in image_paths:
@@ -256,6 +300,16 @@ def n_regions(image_paths, scale_factor=0.02, color_factor=0.1, area_factor=0.00
     Returns:
     - list: A list of region counts for each image.
     '''
+
+    if(scale_factor <= 0 or scale_factor >= 1):
+        raise ValueError("scale_factor must be between 0 and 1.")
+    if(color_factor <= 0 or color_factor >= 1):
+        raise ValueError("color_factor must be between 0 and 1.")
+    if(area_factor <= 0 or area_factor >= 1):
+        raise ValueError("area_factor must be between 0 and 1.")
+    
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
 
 
     n_regions_array = []
@@ -307,6 +361,19 @@ def jpeg_compression_ratio(image_paths, quality=90, channel='all', is_edge_proce
     Returns:
     - list: A list of tuples containing the compression ratio and RMSE values for each image.
     '''
+
+    if(quality < 0 or quality > 100):
+        raise ValueError("quality must be between 0 and 100.")
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+    if(channel not in ['all', 'R', 'G', 'B', 'H', 'S', 'V']):
+        raise ValueError("channel must be one of 'all', 'R', 'G', 'B', 'H', 'S', or 'V'.")
+    if(is_edge_processing):
+        if(edge_method not in ['sobel']):
+            raise ValueError("edge_method must be one of 'sobel'.")
+        if(direction not in ['x', 'y', 'all']):
+            raise ValueError("direction must be one of 'x', 'y', or 'all'.")
+    
     
     ratios = []
     rmses = []
@@ -361,6 +428,11 @@ def zipf_rank(image_paths, channel='all'):
     - pd.DataFrame: A DataFrame with two new columns: 'zipf_slope' and 'zipf_r_value', containing the Zipf's law slope and R-value for each image, respectively.
     '''
 
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+    if(channel not in ['all', 'R', 'G', 'B', 'H', 'S', 'V']):
+        raise ValueError("channel must be one of 'all', 'R', 'G', 'B', 'H', 'S', or 'V'.")
+
     slopes = []
     r_values = []
 
@@ -399,6 +471,11 @@ def zipf_difference(image_paths, channel='all'):
     Returns:
     - list: A list of tuples containing the Zipf's difference slope and R-value for each image, respectively.
     '''
+
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+    if(channel not in ['all', 'R', 'G', 'B', 'H', 'S', 'V']):
+        raise ValueError("channel must be one of 'all', 'R', 'G', 'B', 'H', 'S', or 'V'.")
 
     slopes = []
     r_values = []
@@ -471,6 +548,12 @@ def count_unique_colors(image_paths, bits_per_channel=8, use_mask=False):
     - list: A list of arrays, where each array contains the unique colors for the corresponding image.
     '''
 
+    if(bits_per_channel <= 0 or bits_per_channel > 8):
+        raise ValueError("bits_per_channel must be between 1 and 8.")
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+    
+
     unique_colors_array = []
     colors_count_array = []
 
@@ -509,6 +592,9 @@ def fft_measures(image_paths):
     - pd.DataFrame: A DataFrame with the FFT features for each image, containing the columns 'fft_low', 'fft_mid', and 'fft_high'.
     '''
 
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
+
     features_array = []
 
     for img_path in image_paths:
@@ -537,6 +623,9 @@ def haralick_measures(image_paths):
     Returns:
     - pd.DataFrame: A DataFrame with the Haralick features for each image, containing the columns 'contrast_haralick', 'correlation_haralick', 'energy_haralick', and 'homogeneity_haralick'.
     '''
+
+    if(len(image_paths) == 0):
+        raise ValueError("image_paths list cannot be empty.")
 
     features_array = []
 

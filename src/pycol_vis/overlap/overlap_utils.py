@@ -5,6 +5,23 @@ from scipy.linalg import eigh
 from sklearn.neighbors import NearestNeighbors
 
 
+def validate_inputs(embeddings, labels):
+    if(embeddings.shape[0] != len(labels)):
+        raise ValueError("Number of embeddings must match number of labels.")
+    
+    
+    if(len(np.unique(labels)) < 2):
+        raise ValueError("There must be at least 2 classes in the dataset to calculate the CSG measure.")
+    
+    if(embeddings.shape[1] < 2):
+        raise ValueError("Embeddings must have at least 2 dimensions to calculate the CSG measure.")
+    
+    if(embeddings.shape[0] < 10):
+        raise ValueError("There must be at least 10 samples in the dataset to calculate the CSG measure.")
+
+    if(embeddings.shape[0] < 100):
+        print("Warning: The dataset contains a small number of samples, which may lead to less stable results. Consider using a larger dataset for more reliable results.")
+
 
 def compute_normalized_matrices(X, y):
     '''
@@ -79,8 +96,35 @@ def compute_m_var(S_w_hat, num_classes, dim):
 
 
 
+def average_knn_distance(query_points, reference_points, k_neighbors=5):
+    '''
+    Compute the average k-nearest neighbor distance between query points and reference points.
 
-def knn_density_estimation(query_points, reference_points, k_neighbors=5):
+    Parameters:
+    - query_points (np.ndarray): Points for which nearest neighbors will be queried.
+    - reference_points (np.ndarray): Reference points used to fit the nearest neighbor structure.
+    - k_neighbors (int): Number of nearest neighbors to consider.
+
+    Returns:
+    - np.ndarray: Average k-nearest neighbor distance for each query point.
+    '''
+
+    if(len(reference_points) < k_neighbors):
+        k = len(reference_points)
+    else:
+        k = k_neighbors
+
+    knn = NearestNeighbors(n_neighbors=k, algorithm='auto')
+
+    knn.fit(reference_points)
+
+    distances, _ = knn.kneighbors(query_points)
+    avg_distances = np.mean(distances, axis=1)
+
+    return avg_distances
+
+
+def knn_density_estimation(query_points, reference_points, k_neighbors=5,normalize_density=True):
 
     if(len(reference_points) < k_neighbors):
         k = len(reference_points)
@@ -93,7 +137,10 @@ def knn_density_estimation(query_points, reference_points, k_neighbors=5):
     distances, _ = knn.kneighbors(query_points)
     d = reference_points.shape[1]
 
-    volumes = (distances[:, -1] * 2) ** d
+    if(normalize_density):
+        volumes = (distances[:, -1] * 2)
+    else:
+        volumes = (distances[:, -1] * 2) ** d
     volumes = np.maximum(volumes, 1e-10)
 
     n_ref = len(reference_points)
@@ -102,17 +149,30 @@ def knn_density_estimation(query_points, reference_points, k_neighbors=5):
     return densities
 
 
-def compute_pairwise_similarity(embeddings_i, embeddings_j, n_samples=50):
+def compute_pairwise_similarity(embeddings_i, embeddings_j, n_samples=50,normalize_density=False,use_distance=True,sigma=None):
 
     inxs = np.random.choice(len(embeddings_i), min(n_samples, len(embeddings_i)), replace=False)
     monte_carlo_samples = embeddings_i[inxs]
-    probabilities = knn_density_estimation( monte_carlo_samples, embeddings_j )
-    similarity = np.mean(probabilities)
+    
+    if(not use_distance):
+        probabilities = knn_density_estimation( monte_carlo_samples, embeddings_j, normalize_density=False )
+        similarity = np.mean(probabilities)
+
+    else:
+        
+
+        distance = average_knn_distance(monte_carlo_samples, embeddings_j)
+
+        if(sigma == None):
+            sigma = np.mean(distance)
+
+        similarity = np.mean(np.exp(-distance))
+
 
     return similarity
 
 
-def compute_similarity_matrix_S(data, labels, class_labels, n_samples=50):
+def compute_similarity_matrix_S(data, labels, class_labels, n_samples=50, normalize_density=True):
     '''
     Compute similarity matrix S.
     '''
@@ -127,7 +187,7 @@ def compute_similarity_matrix_S(data, labels, class_labels, n_samples=50):
             embeddings_i = data[labels == class_labels[i]]
             embeddings_j = data[labels == class_labels[j]]
 
-            similarity_matrix_S[i, j] = compute_pairwise_similarity( embeddings_i,embeddings_j,   n_samples=n_samples )
+            similarity_matrix_S[i, j] = compute_pairwise_similarity( embeddings_i,embeddings_j,   n_samples=n_samples, normalize_density=normalize_density )
 
     return similarity_matrix_S
 
@@ -157,10 +217,15 @@ def compute_adjacency_matrix_W(similarity_matrix_S):
     return adjacency_matrix_W
 
 
-def compute_laplacian_matrix_L(adjacency_matrix_W):
+def compute_laplacian_matrix_L(adjacency_matrix_W, normalized=True):
 
     degree_matrix_D = np.diag(np.sum(adjacency_matrix_W, axis=1))
-    laplacian_matrix_L = degree_matrix_D - adjacency_matrix_W
+
+    if(normalized):
+        d_inv_sqrt = np.diag(1.0 / np.sqrt(np.diag(degree_matrix_D) + 1e-10))
+        laplacian_matrix_L = (np.eye(len(adjacency_matrix_W))- d_inv_sqrt @ adjacency_matrix_W @ d_inv_sqrt)
+    else:
+        laplacian_matrix_L = degree_matrix_D - adjacency_matrix_W
 
     return laplacian_matrix_L, degree_matrix_D
 

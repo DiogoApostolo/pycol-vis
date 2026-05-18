@@ -1,6 +1,8 @@
 from pycol_vis.image_metrics import ImageComplexity
 from pycol_vis.classifiers.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
 
+import os
+
 '''
 Visualization use case example. In this example we embed the images using an efficient net and then visualize the embeddings using t-SNE.
 
@@ -22,6 +24,9 @@ if __name__ == "__main__":
 
     dataset = "shapes_dataset"
     folder = "./" + dataset +  "/train/"
+
+    if not os.path.exists(folder):
+        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://data.mendeley.com/datasets/wzr2yv7r53/1 or use the shapes_dataset.zip in this repo and place it in the correct location.")
 
     classes = ["Circle","Square","Triangle"]
 

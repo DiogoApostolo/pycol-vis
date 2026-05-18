@@ -4,7 +4,9 @@
 import numpy as np
 from pycol_complexity import complexity as pycol_complexity
 
-from .overlap_utils import compute_normalized_matrices,compute_m_sep_direct,compute_m_var,compute_similarity_matrix_S,compute_adjacency_matrix_W,compute_laplacian_matrix_L,compute_spectrum,compute_csg_complexity,compute_AULS_complexity,compute_cmsAULS_complexity
+from .overlap_utils import validate_inputs, compute_normalized_matrices,compute_m_sep_direct,compute_m_var,compute_similarity_matrix_S,compute_adjacency_matrix_W,compute_laplacian_matrix_L,compute_spectrum,compute_csg_complexity,compute_AULS_complexity,compute_cmsAULS_complexity
+from ..embeddings.reduction_utils import normalize_embs
+
 
 def m_var_measure(embeddings, labels):
     '''
@@ -21,6 +23,9 @@ def m_var_measure(embeddings, labels):
     - float: The calculated M_var measure, which quantifies the variability of samples within each class in the embedding space. A lower value indicates better class separability.
     '''
 
+    validate_inputs(embeddings, labels)
+
+    embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
 
     S_w_hat, S_b_hat = compute_normalized_matrices(embeddings, labels)
 
@@ -43,6 +48,10 @@ def m_sep_measure(embeddings, labels):
     
     
     '''
+    validate_inputs(embeddings, labels)
+
+    embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+
     S_w_hat, S_b_hat = compute_normalized_matrices(embeddings, labels)
 
     m_sep = compute_m_sep_direct(S_w_hat, S_b_hat)
@@ -65,6 +74,14 @@ def tabular_measure(embeddings, labels, measure='kdn'):
     - float: The calculated complexity measure value for the given embeddings and labels.
     '''
      
+    
+
+
+    validate_inputs(embeddings, labels)
+
+    embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+
+
 
     dataset_dic = {
         'X': embeddings,
@@ -83,7 +100,7 @@ def tabular_measure(embeddings, labels, measure='kdn'):
 
     elif(measure=='lsc'):
         comp_value = pycol_complexity.Complexity(file_type='array',dataset=dataset_dic).LSC(imb=True)
-
+    
     else:
         raise ValueError("Measure must be one of 'n2', 'kdn', or 'lsc'.")
 
@@ -104,7 +121,9 @@ def auls_measure(embeddings, labels, n_samples=50):
     - float: The calculated AULS complexity measure value for the given embeddings and labels.
     
     '''
+    validate_inputs(embeddings, labels)
 
+    embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
 
     similarity_matrix_S = compute_similarity_matrix_S(embeddings,labels,np.unique(labels),n_samples=n_samples)
 
@@ -119,7 +138,10 @@ def auls_measure(embeddings, labels, n_samples=50):
     return auls
 
 
-def csg_measure(embeddings, labels, n_samples=50, auls=False):
+
+
+
+def csg_measure(embeddings, labels, n_samples=50, auls=False, normalize_density=True):
     '''
     Calculate the CSG complexity measure based on the spectrum of the graph. CSG is calculated using the eigenvalues of the Laplacian matrix derived from the similarity graph of the embeddings.
     A lower CSG value indicates better class separability in the embedding space, while a higher value indicates more overlap between classes.
@@ -133,14 +155,34 @@ def csg_measure(embeddings, labels, n_samples=50, auls=False):
     Returns:
     - float: The calculated CSG complexity measure value for the given embeddings and labels. If auls is True, the calculated CMS-AULS complexity measure value will be returned instead.
     '''
+    
 
-    similarity_matrix_S = compute_similarity_matrix_S(embeddings,labels,np.unique(labels),n_samples=n_samples)
+    #sanatize inputs
+    validate_inputs(embeddings, labels)
+
+    if(n_samples <= 0):
+        raise ValueError("n_samples must be a positive integer.")
+    
+    if(n_samples > 1000):
+        print("Warning: n_samples is set to a high value, which may lead to long computation times. Consider reducing n_samples for faster results.")
+
+    if(n_samples < 20):
+        print("Warning: n_samples is set to a low value, which may lead to less stable results. Consider increasing n_samples for more reliable results.")
+
+
+    
+
+
+
+    embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+
+    similarity_matrix_S = compute_similarity_matrix_S(embeddings,labels,np.unique(labels),n_samples=n_samples,normalize_density=normalize_density)
 
     W = compute_adjacency_matrix_W(similarity_matrix_S)
     L, D = compute_laplacian_matrix_L(W)
 
     eigenvalues, eigenvectors = compute_spectrum(L)
-
+    #eigenvalues = eigenvalues / np.sum(eigenvalues)
     if(auls):
         measure = compute_cmsAULS_complexity(eigenvalues)
 

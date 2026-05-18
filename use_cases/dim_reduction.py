@@ -1,17 +1,24 @@
 from pycol_vis.image_metrics import ImageComplexity
 from pycol_vis.classifiers.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
 
+import random
+import numpy as np
+import tensorflow as tf
+
+import pandas as pd
+
+import os
 
 '''
 Use case of dimensionality reduction of feature embeddings. In this example we embed the images using an efficient net and then reduce the dimensionality of the embeddings using PCA.
 
 We then train a classifier on the reduced embeddings and evaluate the accuracy.
 
-N_COMPONENTS variable can be changed to reduce to more or less dimensions. 
+dim_array variable can be changed to reduce to more or less dimensions. 
 
 A user can indentify is a reduction method will be beneficial for the classification task by looking at the CSG measure before and after the dimensionality reduction. 
 
-If the CSG measure decreases after the reduction, it is likely that the reduction has helped to improve class separability in the embedding space, which can lead to better classification performance.
+If the CSG measure decreases or remains low after the reduction, it is likely that the reduction has helped to improve class separability in the embedding space, which can lead to better classification performance.
 Contrarily, if the CSG measure increases after the reduction, it may indicate that the reduction has removed important information from the embeddings, which can lead to worse classification performance.
 
 Download the Dataset in https://www.kaggle.com/datasets/prashant268/chest-xray-covid19-pneumonia
@@ -20,43 +27,98 @@ Download the Dataset in https://www.kaggle.com/datasets/prashant268/chest-xray-c
 
 if __name__ == "__main__":
 
+    SEED=0
+    
+    random.seed(SEED)
+    np.random.seed(SEED)
+    tf.random.set_seed(SEED)
+
+
+
     dataset = "CovidDataset"
     folder = "./" + dataset +  "/train/"
 
-    classes = ["PNEUMONIA","NORMAL"]
+    #check if folder exists and if not tell user to download the dataset and place it in the correct location
+    if not os.path.exists(folder):
+        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://www.kaggle.com/datasets/prashant268/chest-xray-covid19-pneumonia and place it in the correct location.")
 
-    N_COMPONENTS = 50
+    classes = ["NORMAL","COVID19","PNEUMONIA"]
+    emb_type = "efficient_net"
+    dim_array = [2,10,50,100,1280]
 
-    complexity_train = ImageComplexity(folder,keep_classes=classes,number_per_class=200)
-
-    complexity_train.embed_images(emb_type='efficient_net')
-
-    complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_components=N_COMPONENTS)
-    reduction_method = complexity_train.reduction_method
-
-    print("Reduction method used:")
-    print(reduction_method)
-
-    measure = complexity_train.csg_measure(emb_type="current",n_samples=50, reduction_type='custom', reduction_method=reduction_method,auls=True)
-
-    print("CSG Measure:", measure)
-
-    X_train = complexity_train.feature_embeddings
-    y_train = complexity_train.images['class'].values
-
-    print("Train set shape:")
-    print(complexity_train.images.shape)
-
+    complexity_train = ImageComplexity(folder,keep_classes=classes,set_size=(200,200,3))
+    
+    #complexity_train.cnn_setup(epochs=10,depth=2)
+    #complexity_train.cnn_setup(epochs=5,depth=3)
+    complexity_train.embed_images(emb_type=emb_type)
+    
     folder = "./" + dataset +  "/test/"
 
-    complexity_test = ImageComplexity(folder,keep_classes=classes,number_per_class=100)
-    complexity_test.embed_images(emb_type='efficient_net')
-    complexity_test.feature_embeddings = complexity_test.dim_reduction(complexity_test.feature_embeddings,method='custom',custom_method=reduction_method)
+    complexity_test = ImageComplexity(folder,keep_classes=classes,set_size=(200,200,3))
+    complexity_test.model = complexity_train.model
+    
+    complexity_test.embed_images(emb_type=emb_type)
+    
 
-    complexity_test.plot_tsne()
+    print("Train Shape")
+    print(complexity_train.feature_embeddings.shape)
 
-    X_test = complexity_test.feature_embeddings
-    y_test = complexity_test.images['class'].values
+    print("Test Shape")
+    print(complexity_test.feature_embeddings.shape)
 
-    accuracy_xgb = xgb_classifier(X_train,y_train,X_test,y_test)
-    print("XGB Accuracy:", accuracy_xgb)
+    show_plt = False
+
+    train_embeddings_original =   complexity_train.feature_embeddings.copy()
+    test_embeddings_original  =   complexity_test.feature_embeddings.copy()
+
+    perf_array = []
+    comp_array = []
+    comp_test_array = []
+
+    for N_COMPONENTS in dim_array:
+
+        print(N_COMPONENTS)
+        complexity_train.feature_embeddings = complexity_train.dim_reduction(train_embeddings_original,method='pca',n_components=N_COMPONENTS)
+        reduction_method = complexity_train.reduction_method
+
+        print("Reduction method used:")
+        print(reduction_method)
+
+        measure = complexity_train.csg_measure(emb_type="current",n_samples=2000, reduction_type='custom', reduction_method=reduction_method,auls=True)
+        #measure = complexity_train.m_sep_measure(emb_type="current", reduction_type='custom', reduction_method=reduction_method)
+        #measure = complexity_train.tabular_measure(emb_type="current", measure="kDN" , reduction_type='custom', reduction_method=reduction_method)
+
+        print("Complexity Train:", measure)
+
+        X_train = complexity_train.feature_embeddings
+        y_train = complexity_train.images['class'].values
+
+        print("Train set shape:")
+        print(complexity_train.images.shape)
+
+       
+        complexity_test.feature_embeddings = complexity_test.dim_reduction(test_embeddings_original,method='custom',custom_method=reduction_method)
+
+
+        measure_test = complexity_test.csg_measure(emb_type="current",n_samples=2000, reduction_type='custom', reduction_method=reduction_method,auls=True)
+        #measure_test = complexity_test.m_sep_measure(emb_type="current", reduction_type='custom', reduction_method=reduction_method)
+        #measure_test = complexity_test.tabular_measure(emb_type="current", measure="kDN" , reduction_type='custom', reduction_method=reduction_method)
+
+
+        if(show_plt):
+            complexity_test.plot_tsne()
+
+        X_test = complexity_test.feature_embeddings
+        y_test = complexity_test.images['class'].values
+
+        accuracy_xgb = nn_classifier(X_train,y_train,X_test,y_test)
+        print("NN Accuracy:", accuracy_xgb)
+
+
+        perf_array.append(accuracy_xgb)
+        comp_array.append(measure)
+        comp_test_array.append(measure_test)
+
+    
+    df = pd.DataFrame({"Dim":dim_array, "Performace":perf_array, "Complexity Train":comp_array, "Complexity Test":comp_test_array})
+    print(df)

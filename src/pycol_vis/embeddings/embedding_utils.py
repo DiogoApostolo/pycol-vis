@@ -51,6 +51,12 @@ def setup_cnn(image_shape,num_classes,images=None,depth=2,epochs=10,train_model=
     Create and optionally train a CNNEmbeddingModel.
     '''
 
+    if(depth < 1):
+        raise ValueError("depth must be at least 1.")
+    if(epochs < 1):
+        raise ValueError("epochs must be at least 1.")
+   
+
     model = CNNEmbeddingModel(image_shape=image_shape,num_classes=num_classes,depth=depth)
 
     if(train_model):
@@ -118,6 +124,19 @@ def generate_embeddings(image_paths,emb_type="efficient_net",batch_size=16,num_w
 
 def embed_images(image_paths, feature_embeddings=None, model=None, emb_type='efficient_net', layer_index=-1, num_workers=0):
 
+
+    if(emb_type not in EMBEDDING_MODELS and emb_type != "current" and emb_type != "raw" and emb_type != "CNN"):
+        raise ValueError(f"Unknown embedding type: {emb_type}")
+    #validate inputs
+    if(layer_index < -1):
+        raise ValueError("layer_index must be -1 or a non-negative integer.")
+    if(num_workers < 0):
+        raise ValueError("num_workers must be a non-negative integer.")
+    if(image_paths is None or len(image_paths) == 0):
+        raise ValueError("image_paths must be a non-empty list of image paths.")
+    
+
+
     if(emb_type == "current"):
 
         if(feature_embeddings is None):
@@ -138,12 +157,14 @@ def embed_images(image_paths, feature_embeddings=None, model=None, emb_type='eff
         embeddings = np.array(feature_embeddings)
 
     elif(emb_type == "CNN"):
-
+        if(model is None):
+            raise ValueError("model must be provided when emb_type='CNN'")
+        
         print("Extracting CNN embeddings...")
         embeddings = model.get_feature_embeddings_all(image_paths=image_paths, layer_index=layer_index)
 
     else:
-
+        print(f"Extracting {emb_type} embeddings...")
         embeddings = generate_embeddings(image_paths=image_paths, emb_type=emb_type, num_workers=num_workers)
 
     return embeddings

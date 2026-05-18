@@ -3,40 +3,53 @@
 import os
 
 
+
+
+
+
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3" 
 
-
+from .overlap.api import OverlapAPI
+from .intrinsic.api import IntrinsicAPI
+from .embeddings.api import EmbeddingAPI
 
 
 from .utils.utils import get_average_image_shape, load_images,  sample_dataset
 
-
+#TODO: remove the following imports since they are now imported in the respective API files
 from .embeddings.embedding_utils import setup_cnn, embed_images
 from .embeddings.reduction_utils import dim_reduction
-
-
-from .visualization import plot_overlap_measures,plot_intrinsic_measures,plot_tsne,visualize_metrics_per_class,visualize_measure_distribution,visualize_specific_images
-
 from .intrinsic import intrinsic_measures
 from .overlap import overlap_measures
 
+from .visualization import plot_overlap_measures,plot_intrinsic_measures,plot_tsne,visualize_metrics_per_class,visualize_measure_distribution,visualize_specific_images
+
+
+
 class ImageComplexity:
-    def __init__(self, folder, keep_classes = 'all', number_per_class= -1, use_keras_dataset=False):
+    def __init__(self, folder, keep_classes = 'all', number_per_class= -1, use_keras_dataset=False, set_size=None):
         self.use_keras_dataset = use_keras_dataset
         self.images = load_images(folder,keep_classes,number_per_class)
-        self.image_shape = get_average_image_shape(self.images)
+
+        if(set_size==None):
+            self.image_shape = get_average_image_shape(self.images)
+        else:
+            self.image_shape = set_size
         
         self.num_classes = len(self.images['class'].unique())
         self.class_labels = self.images['class'].unique()
-
+        self.model = None
         self.is_trained = False
         self.overlap_measures_dic= {}
         print("Dataset loaded")
 
 
+        self.embeddings = EmbeddingAPI(self)
+        self.intrinsic = IntrinsicAPI(self)
+        self.overlap =  OverlapAPI(self)    
+        
 
-
-    def sample_dataset(self, n_samples_per_class, sample_type='jpeg_compression'):
+    def sample_dataset(self, n_samples_per_class, sample_type='random'):
         '''
         Sample the dataset based on the specified sampling type and number of samples per class. The sampling is performed separately for each class to ensure a balanced representation of classes in the sampled dataset.
         Parameters:
@@ -46,8 +59,10 @@ class ImageComplexity:
             - 'jpeg_compression': Select samples based on their JPEG compression ratio, which can be an indicator of image quality and complexity, to include images with varying levels of compression in the sampled dataset.
         
         '''
-        self.images = sample_dataset(self.images, n_samples_per_class=n_samples_per_class, sample_type=sample_type)
-    
+       
+        self.images, indexes = sample_dataset(self.images, n_samples_per_class=n_samples_per_class, sample_type=sample_type)
+       
+        self.feature_embeddings = self.feature_embeddings[indexes]
 
     def embed_images(self, emb_type, layer_index=-1, num_workers=0):
         '''
@@ -68,10 +83,6 @@ class ImageComplexity:
         if(emb_type not in ["raw", "CNN", "efficient_net", "mobile_net", "current"]):
             raise ValueError("Invalid embedding type. Supported types are: 'raw', 'CNN', 'efficient_net', 'mobile_net', 'current'.")
 
-        if(emb_type != "CNN"):
-            self.model = None
-        
-        
         if(emb_type == 'current'):
             if(self.feature_embeddings is None):
                 print("No current embeddings found.")
@@ -326,21 +337,21 @@ class ImageComplexity:
         Calculate all intrinsic measures for each image and store the values in the self.images DataFrame under the corresponding columns.
         '''
         print("Calculating all intrinsic measures...")
-        self.edge_density_canny()
-        self.edge_density_sobel()
-        self.hsv_std()
-        self.hsv_mean()
-        self.rgb_mean()
-        self.rgb_std()
-        self.entropy_measure()
-        self.energy_measure()
-        self.jpeg_compression_ratio()
-        self.zipf_rank()
-        self.zipf_difference()
-        self.count_unique_colors()
-        self.fft_measures()
-        self.haralick_measures()
-            
+        self.intrinsic.edge_density_canny()
+        self.intrinsic.edge_density_sobel()
+        self.intrinsic.hsv_std()
+        self.intrinsic.hsv_mean()
+        self.intrinsic.rgb_mean()
+        self.intrinsic.rgb_std()
+        self.intrinsic.entropy_measure()
+        self.intrinsic.energy_measure()
+        self.intrinsic.jpeg_compression_ratio()
+        self.intrinsic.zipf_rank()
+        self.intrinsic.zipf_difference()
+        self.intrinsic.count_unique_colors()
+        self.intrinsic.fft_measures()
+        self.intrinsic.haralick_measures()
+
     #--------------------------------Per class averages -------------------------
 
     def jpeg_compression_ratio_per_class(self, quality=90, channel='all', is_edge_processing=False, edge_method='sobel', direction='all'):
@@ -645,11 +656,12 @@ class ImageComplexity:
         Calculate all overlap measures for the specified embedding type and layer index, and store the results in the self.overlap_measures_dic dictionary.
         '''
 
-        self.m_var_measure(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
-        self.m_sep_measure(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
-        self.tabular_measure(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components, measure='kdn')
-        self.auls_measure(emb_type=emb_type, layer_index=layer_index, n_samples=n_samples, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
-        self.csg_measure(emb_type=emb_type, layer_index=layer_index, n_samples=n_samples, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
+        
+        self.overlap.m_var_measure(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
+        self.overlap.m_sep_measure(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
+        self.overlap.tabular_measure(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components, measure='kdn')
+        self.overlap.auls_measure(emb_type=emb_type, layer_index=layer_index, n_samples=n_samples, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
+        self.overlap.csg_measure(emb_type=emb_type, layer_index=layer_index, n_samples=n_samples, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
 
         print("All overlap measures calculated for embedding type:", emb_type, "and layer index:", layer_index) 
 
