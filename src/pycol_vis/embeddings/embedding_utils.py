@@ -83,7 +83,13 @@ EMBEDDING_MODELS = {
 }
 
 
-def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=128,num_workers=0,device=None,output_path="embeddings.dat"):
+def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=4,num_workers=0,device=None,output_path="embeddings.dat"):
+    
+
+    if hasattr(model, 'to'):
+        model = model.to("cpu")
+        if hasattr(model, 'encoder') and model.encoder is not None:
+            model.encoder = model.encoder.to("cpu")
 
     if(device is None):
         if torch.cuda.is_available():
@@ -95,6 +101,9 @@ def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=128,num_
         print(f"Using device: {device}")
 
     model = model.to(device)
+    if hasattr(model, 'encoder') and model.encoder is not None:
+        model.encoder = model.encoder.to(device)
+        
     model.eval()
 
     dataset = ImageDataset(image_paths, preprocess_fn)
@@ -104,10 +113,13 @@ def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=128,num_
     loader = DataLoader(dataset,batch_size=batch_size,shuffle=False,num_workers=num_workers,pin_memory=pin_memory)
 
     num_images = len(image_paths)
-    sample = next(iter(loader)).to(device)
 
     with torch.inference_mode():
-        sample_emb = model(sample[:1])
+        for batch in loader:
+            
+            batch = batch.to(device)
+            sample_emb = model(batch[:1])
+            break
 
     embedding_dim = sample_emb.shape[1]
 
@@ -118,19 +130,35 @@ def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=128,num_
 
     with torch.inference_mode():
         for batch in loader:
-            batch = batch.to(device, non_blocking=True)
+            
+            batch = batch.to(device)
             batch_embeddings = model(batch).cpu().numpy()
+
             end = start + len(batch_embeddings)
             embeddings[start:end] = batch_embeddings
             start = end
+
             pbar.update(len(batch_embeddings))
 
     pbar.close()
     embeddings.flush()
 
-    return np.asarray(embeddings)
+    clean_numpy_array = np.array(embeddings, dtype=np.float32)
+    
+    if hasattr(embeddings, '_mmap'):
+        embeddings._mmap.close()
+        
+    try:
+        import os
+        if os.path.exists(output_path):
+            os.remove(output_path)
+    except Exception:
+        pass
 
-def generate_embeddings(image_paths,emb_type="efficient_net",batch_size=16,num_workers=0,device=None):
+    return clean_numpy_array
+
+
+def generate_embeddings(image_paths,emb_type="efficient_net",batch_size=32,num_workers=0,device=None):
     '''
     Generate embeddings for a list of image paths using a specified embedding model.
     '''

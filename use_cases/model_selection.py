@@ -5,7 +5,7 @@ import random
 import numpy as np
 import tensorflow as tf
 import os
-
+import torch
 
 '''
 Model Selection use case example. In this example we embed the images using an mobile net and then train different classifiers on the embeddings and evaluate the accuracy.
@@ -22,9 +22,18 @@ if __name__ == "__main__":
 
     SEED=0
     
+    
     random.seed(SEED)
     np.random.seed(SEED)
-    tf.random.set_seed(SEED)
+    torch.manual_seed(SEED)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(SEED)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    torch.use_deterministic_algorithms(True)
 
     #Example of usage
     dataset = "Fruit_dataset"

@@ -85,59 +85,51 @@ class ConvAutoencoder:
         return self.autoencoder.predict(images)
     
 
+
 class EfficientNetLite0EmbeddingModel(torch.nn.Module):
-
-    def __init__(self, device=None):
+    def __init__(self):
         super().__init__()
-
-        self.device = device if device else torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
-
+        # Let PyTorch handle devices natively via .to() externally
         base_model = efficientnet_b0(weights=EfficientNet_B0_Weights.DEFAULT)
         self.encoder = torch.nn.Sequential(*list(base_model.children())[:-1])
         self.encoder.eval()
-        self.encoder.to(self.device)
 
     def forward(self, x):
         """
         x: Tensor of shape (batch_size, 3, 224, 224)
         """
-
-        x = x.to(self.device)
+        # Dynamic check: ensure input matches whatever device the weights are currently on
+        current_device = next(self.parameters()).device
+        x = x.to(current_device)
 
         with torch.inference_mode():
             features = self.encoder(x)
 
         features = torch.flatten(features, 1)
-
         return features
 
 
 class MobileNetV3EmbeddingModel(torch.nn.Module):
-    def __init__(self, device=None):
+    def __init__(self):
         super().__init__()
-
-        
-        self.device = device if device else torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
-
         weights = MobileNet_V3_Small_Weights.DEFAULT
         base_model = mobilenet_v3_small(weights=weights)
         base_model.classifier = torch.nn.Identity()
-        self.encoder = base_model.eval().to(self.device)
+        self.encoder = base_model.eval()
         self.preprocess_transform = weights.transforms()
         
     def forward(self, batch: torch.Tensor):
         """
         batch: Tensor of shape (batch_size, 3, 224, 224)
         """
-        batch = batch.to(self.device)
+        # Dynamic check: match the weight device dynamically
+        current_device = next(self.parameters()).device
+        batch = batch.to(current_device)
+        
         with torch.inference_mode():
             features = self.encoder(batch)
 
-        return features  
+        return features
     
 
 
