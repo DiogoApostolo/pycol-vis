@@ -1,5 +1,5 @@
-from pycol_vis.image_metrics import ImageComplexity
-from pycol_vis.classifiers.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
+from pycol_vis import ImageComplexity
+from pycol_vis.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
 
 import random
 import numpy as np

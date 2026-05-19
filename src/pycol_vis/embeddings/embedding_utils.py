@@ -14,6 +14,8 @@ from torch.utils.data import DataLoader
 
 from ..datasets.dataset_class import ImageDataset
 from ..utils.utils import load_image
+from tqdm.auto import tqdm
+
 
 def efficientnet_preprocess(img):
     '''
@@ -81,33 +83,52 @@ EMBEDDING_MODELS = {
 }
 
 
-def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=16,num_workers=0,device=None):
-    '''
-    Auxiliary function to extract embeddings from a torch model in batches.
-    '''
+def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=128,num_workers=0,device=None,output_path="embeddings.dat"):
+
     if(device is None):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if torch.cuda.is_available():
+            device = torch.device("cuda")
+        elif torch.backends.mps.is_available():
+            device = torch.device("mps")
+        else:
+            device = torch.device("cpu")
+        print(f"Using device: {device}")
 
     model = model.to(device)
-
     model.eval()
 
-    dataset = ImageDataset(image_paths,preprocess_fn)
+    dataset = ImageDataset(image_paths, preprocess_fn)
 
-    loader = DataLoader(dataset,batch_size=batch_size,shuffle=False,num_workers=num_workers,pin_memory=True)
+    pin_memory = torch.cuda.is_available()
 
-    all_embeddings = []
+    loader = DataLoader(dataset,batch_size=batch_size,shuffle=False,num_workers=num_workers,pin_memory=pin_memory)
+
+    num_images = len(image_paths)
+    sample = next(iter(loader)).to(device)
 
     with torch.inference_mode():
-        
-        
+        sample_emb = model(sample[:1])
 
+    embedding_dim = sample_emb.shape[1]
+
+    embeddings = np.memmap(output_path,dtype=np.float32,mode='w+',shape=(num_images, embedding_dim))
+    start = 0
+
+    pbar = tqdm(total=num_images,desc="extracting embeddings")
+
+    with torch.inference_mode():
         for batch in loader:
-            batch = batch.to(device)
-            embeddings = model(batch)
-            all_embeddings.append(embeddings.cpu())
+            batch = batch.to(device, non_blocking=True)
+            batch_embeddings = model(batch).cpu().numpy()
+            end = start + len(batch_embeddings)
+            embeddings[start:end] = batch_embeddings
+            start = end
+            pbar.update(len(batch_embeddings))
 
-    return torch.cat(all_embeddings).numpy()
+    pbar.close()
+    embeddings.flush()
+
+    return np.asarray(embeddings)
 
 def generate_embeddings(image_paths,emb_type="efficient_net",batch_size=16,num_workers=0,device=None):
     '''

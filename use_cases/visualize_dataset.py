@@ -1,4 +1,4 @@
-from pycol_vis.image_metrics import ImageComplexity
+from pycol_vis import ImageComplexity
 import os
 
 '''

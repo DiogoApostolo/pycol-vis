@@ -81,6 +81,7 @@ temp/
 shapes_dataset/
 Fruit_dataset/
 CovidDataset/
+embeddings.dat
 
 # ================================
 # Local testing / debug scripts
