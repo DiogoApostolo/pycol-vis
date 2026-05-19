@@ -10,11 +10,9 @@ Furthermore we use multiple overlap measures and plot a bar plot to visualize th
 
 Methods to visualize the metrics per class are also available, allowing the user to identify which classes are more complex and which are less complex according to a specific metric.
 
-Download the dataset at https://data.mendeley.com/datasets/wzr2yv7r53/1
+Download the dataset at https://github.com/DiogoApostolo/pycol-vis/blob/main/shapes_dataset.zip
 
-OR
 
-Use the shapes_dataset.zip in this repo
 
 
 '''
@@ -26,7 +24,7 @@ if __name__ == "__main__":
     folder = "./" + dataset +  "/train/"
 
     if not os.path.exists(folder):
-        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://data.mendeley.com/datasets/wzr2yv7r53/1 or use the shapes_dataset.zip in this repo and place it in the correct location.")
+        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://github.com/DiogoApostolo/pycol-vis/blob/main/shapes_dataset.zip or use the shapes_dataset.zip in this repo and place it in the correct location.")
 
     classes = ["Circle","Square","Triangle"]
 

@@ -99,6 +99,8 @@ def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=16,num_w
     all_embeddings = []
 
     with torch.inference_mode():
+        
+        
 
         for batch in loader:
             batch = batch.to(device)

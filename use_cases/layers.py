@@ -9,7 +9,7 @@ import os
 '''
 Use case example of how to use the CSG measure to evaluate the complexity of the feature embeddings at different layers of a CNN.
 
-Download the dataset at https://www.kaggle.com/datasets/marquis03/fruits-100
+Download the dataset at https://github.com/DiogoApostolo/pycol-vis/blob/main/Fruit_dataset.zip
 
 OR
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     folder = "./" + dataset +  "/train/"
 
     if not os.path.exists(folder):
-        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://www.kaggle.com/datasets/marquis03/fruits-100 and place it in the correct location.")
+        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://github.com/DiogoApostolo/pycol-vis/blob/main/Fruit_dataset.zip or use the Fruit_dataset.zip in this repo and place it in the correct location.")
 
 
     complexity = ImageComplexity(folder,keep_classes = ['apple','banana'],number_per_class=200)

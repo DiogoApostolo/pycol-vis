@@ -14,11 +14,9 @@ We then embed the images, reduce the dimensionality of the embeddings and train 
 
 Change the N_SAMPLES_PER_CLASS variable to sample more or less images per class.
 
-Download the dataset at https://data.mendeley.com/datasets/wzr2yv7r53/1
+Download the dataset at https://github.com/DiogoApostolo/pycol-vis/blob/main/shapes_dataset.zip
 
-OR
 
-Use the shapes_dataset.zip in this repo
 
 
 
@@ -37,7 +35,7 @@ if __name__ == "__main__":
     folder = "./" + dataset +  "/train/"
 
     if not os.path.exists(folder):
-        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://data.mendeley.com/datasets/wzr2yv7r53/1 or use the shapes_dataset.zip in this repo and place it in the correct location.")
+        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://github.com/DiogoApostolo/pycol-vis/blob/main/shapes_dataset.zip or use the shapes_dataset.zip in this repo and place it in the correct location.")
 
     classes = ["Square","Circle","Triangle"]
 

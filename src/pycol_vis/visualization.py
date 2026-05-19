@@ -40,8 +40,7 @@ def plot_overlap_measures(overlap_measures, labels=None, cls='average'):
         raise ValueError("overlap_measures must be a dictionary")
     if(len(overlap_measures) == 0):
         raise ValueError("overlap_measures dictionary cannot be empty")
-    if(labels is not None and len(labels) != len(next(iter(overlap_measures.values())))):
-        raise ValueError("Length of labels must match the length of measure values in overlap_measures")
+    
     
 
 

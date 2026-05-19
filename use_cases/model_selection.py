@@ -8,11 +8,11 @@ import os
 
 
 '''
-Model Selection use case example. In this example we embed the images using an efficient net and then train different classifiers on the embeddings and evaluate the accuracy.
+Model Selection use case example. In this example we embed the images using an mobile net and then train different classifiers on the embeddings and evaluate the accuracy.
 
 Using the Overalp measures we can identify the difficulty of the classification task and then select a model that is more likely to perform well on the task.
 
-Download the Dataset in https://www.kaggle.com/datasets/marquis03/fruits-100
+Download the Dataset in https://github.com/DiogoApostolo/pycol-vis/blob/main/Fruit_dataset.zip
 
 
 '''
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     folder = "./" + dataset +  "/train/"
 
     if not os.path.exists(folder):
-        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://www.kaggle.com/datasets/marquis03/fruits-100 and place it in the correct location.")
+        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://github.com/DiogoApostolo/pycol-vis/blob/main/Fruit_dataset.zip or use the Fruit_dataset.zip in this repo and place it in the correct location.")
 
     emb_type = "mobile_net"
 
