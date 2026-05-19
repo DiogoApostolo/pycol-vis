@@ -44,10 +44,10 @@ if __name__ == "__main__":
     complexity_train = ImageComplexity(folder,keep_classes=classes)
     
     if(emb_type=="CNN"):
-        complexity_train.cnn_setup(epochs=epochs,depth=depth)
+        complexity_train.embeddings.cnn_setup(epochs=epochs,depth=depth)
 
-    metric_train = complexity_train.tabular_measure(emb_type=emb_type,measure='n2',reduction_type='pca',n_components=3)
-    #metric_train = complexity_train.csg_measure(emb_type=emb_type,reduction_type='pca',n_components=3)
+    metric_train = complexity_train.overlap.tabular_measure(emb_type=emb_type,measure='n2',reduction_type='pca',n_components=3)
+    #metric_train = complexity_train.overlap.csg_measure(emb_type=emb_type,reduction_type='pca',n_components=3)
 
     X_train = complexity_train.feature_embeddings
     y_train = complexity_train.images['class'].values
@@ -62,8 +62,8 @@ if __name__ == "__main__":
     reduction_method = complexity_train.reduction_method
 
     complexity_test.model = complexity_train.model
-    #metric_test = complexity_test.tabular_measure(emb_type=emb_type,measure='n2',reduction_type='custom', reduction_method=reduction_method)
-    metric_test = complexity_test.tabular_measure(emb_type=emb_type,reduction_type='custom', reduction_method=reduction_method)
+    #metric_test = complexity_test.overlap.tabular_measure(emb_type=emb_type,measure='n2',reduction_type='custom', reduction_method=reduction_method)
+    metric_test = complexity_test.overlap.tabular_measure(emb_type=emb_type,reduction_type='custom', reduction_method=reduction_method)
 
 
     #select the class with the highest complexity

@@ -36,11 +36,11 @@ if __name__ == "__main__":
 
 
     complexity = ImageComplexity(folder,keep_classes = ['apple','banana'],number_per_class=200)
-    complexity.cnn_setup(depth=depth,epochs=epochs)
+    complexity.embeddings.cnn_setup(depth=depth,epochs=epochs)
 
     csg_measures = []
     for layer in range(0,depth):
-        csg = complexity.csg_measure(emb_type=emb, reduction_type="pca", layer_index=layer)
+        csg = complexity.overlap.csg_measure(emb_type=emb, reduction_type="pca", layer_index=layer)
 
         if(layer == -1):
             layer_name = "fin"

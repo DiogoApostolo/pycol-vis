@@ -33,9 +33,9 @@ if __name__ == "__main__":
 
 
 
-    complexity_train.csg_measure(emb_type="efficient_net",n_samples=50, reduction_type='pca')
-    complexity_train.tabular_measure(emb_type='efficient_net',measure='kdn',reduction_type='pca')
-    complexity_train.m_sep_measure(emb_type='efficient_net', reduction_type='pca')
+    complexity_train.overlap.csg_measure(emb_type="efficient_net",n_samples=50, reduction_type='pca')
+    complexity_train.overlap.tabular_measure(emb_type='efficient_net',measure='kdn',reduction_type='pca')
+    complexity_train.overlap.m_sep_measure(emb_type='efficient_net', reduction_type='pca')
     complexity_train.plot_overlap_measures()
 
     complexity_train.plot_tsne(embs=complexity_train.feature_embeddings)

@@ -27,12 +27,12 @@ if __name__ == "__main__":
 
     complexity_train = ImageComplexity(folder,keep_classes=classes)
 
-    complexity_train.entropy_measure()
+    complexity_train.intrinsic.entropy_measure()
     complexity_train.visualize_measure_distribution(by_class="True")
 
 
     list_of_images = [folder + "apple" + os.sep + "0.jpg",folder + "apple" + os.sep + "2.jpg"]
 
 
-    complexity_train.entropy_measure()
+    complexity_train.intrinsic.entropy_measure()
     complexity_train.visualize_specific_images(image_list=list_of_images)

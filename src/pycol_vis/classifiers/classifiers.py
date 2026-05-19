@@ -24,7 +24,7 @@ def nn_classifier(X_train, y_train, X_test, y_test):
     
     
 
-    clf = MLPClassifier(hidden_layer_sizes=(200,), max_iter=1000, random_state=42)
+    clf = MLPClassifier(hidden_layer_sizes=(100,), max_iter=1000, random_state=42)
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)

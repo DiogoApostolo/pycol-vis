@@ -9,7 +9,7 @@ import os
 
 '''
 Use Case example of how to sample a dataset based on a complexity measure. 
-In this example we use the jpeg compression ratio as a complexity measure and sample the dataset based on that. 
+In this example we use the entropy as a complexity measure and sample the dataset based on that. 
 We then embed the images, reduce the dimensionality of the embeddings and train a classifier on the sampled dataset.
 
 Change the N_SAMPLES_PER_CLASS variable to sample more or less images per class.
@@ -43,15 +43,15 @@ if __name__ == "__main__":
 
     sample_num_array = [8000,6000,4000,2000]
 
-    #Get the jpeg compression ratio for each image and sample the dataset based on that
-    complexity_train.entropy_measure()
+    #Get the entropy for each image and sample the dataset based on that
+    complexity_train.intrinsic.entropy_measure()
    
 
 
    
     #Embed the images and reduce the dimensionality of the embeddings (In a realistic scenario this would be done after sampling as to not embbed the full dataset, since this is testing multiple values it is faster this way)
-    complexity_train.embed_images(emb_type='efficient_net')
-    complexity_train.feature_embeddings = complexity_train.dim_reduction(complexity_train.feature_embeddings,method='pca',n_components=50)
+    complexity_train.embeddings.embed_images(emb_type='efficient_net')
+    complexity_train.feature_embeddings = complexity_train.embeddings.dim_reduction(complexity_train.feature_embeddings,method='pca',n_components=50)
     reduction_method = complexity_train.reduction_method
 
 
@@ -60,8 +60,8 @@ if __name__ == "__main__":
 
     #Create a complexity object for the test set and use the same reduction method as the train set
     complexity_test = ImageComplexity(folder,keep_classes=classes)
-    complexity_test.embed_images(emb_type='efficient_net')
-    complexity_test.feature_embeddings = complexity_test.dim_reduction(complexity_test.feature_embeddings,method='custom',custom_method=reduction_method)
+    complexity_test.embeddings.embed_images(emb_type='efficient_net')
+    complexity_test.feature_embeddings = complexity_test.embeddings.dim_reduction(complexity_test.feature_embeddings,method='custom',custom_method=reduction_method)
 
     X_test = complexity_test.feature_embeddings
     y_test = complexity_test.images['class'].values

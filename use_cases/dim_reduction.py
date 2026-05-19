@@ -44,20 +44,20 @@ if __name__ == "__main__":
 
     classes = ["NORMAL","COVID19","PNEUMONIA"]
     emb_type = "efficient_net"
-    dim_array = [2,10,50,100,1280]
+    dim_array = [2,50,100,1280]
 
     complexity_train = ImageComplexity(folder,keep_classes=classes,set_size=(200,200,3))
     
     #complexity_train.cnn_setup(epochs=10,depth=2)
     #complexity_train.cnn_setup(epochs=5,depth=3)
-    complexity_train.embed_images(emb_type=emb_type)
+    complexity_train.embeddings.embed_images(emb_type=emb_type)
     
     folder = "./" + dataset +  "/test/"
 
     complexity_test = ImageComplexity(folder,keep_classes=classes,set_size=(200,200,3))
     complexity_test.model = complexity_train.model
     
-    complexity_test.embed_images(emb_type=emb_type)
+    complexity_test.embeddings.embed_images(emb_type=emb_type)
     
 
     print("Train Shape")
@@ -78,17 +78,13 @@ if __name__ == "__main__":
     for N_COMPONENTS in dim_array:
 
         print(N_COMPONENTS)
-        complexity_train.feature_embeddings = complexity_train.dim_reduction(train_embeddings_original,method='pca',n_components=N_COMPONENTS)
+        complexity_train.feature_embeddings = complexity_train.embeddings.dim_reduction(train_embeddings_original,method='pca',n_components=N_COMPONENTS)
         reduction_method = complexity_train.reduction_method
 
         print("Reduction method used:")
         print(reduction_method)
 
-        measure = complexity_train.csg_measure(emb_type="current",n_samples=1500, reduction_type='custom', reduction_method=reduction_method,auls=False)
-        #measure = complexity_train.m_sep_measure(emb_type="current", reduction_type='custom', reduction_method=reduction_method)
-        #measure = complexity_train.tabular_measure(emb_type="current", measure="kDN" , reduction_type='custom', reduction_method=reduction_method)
-
-        print("Complexity Train:", measure)
+       
 
         X_train = complexity_train.feature_embeddings
         y_train = complexity_train.images['class'].values
@@ -97,10 +93,10 @@ if __name__ == "__main__":
         print(complexity_train.images.shape)
 
        
-        complexity_test.feature_embeddings = complexity_test.dim_reduction(test_embeddings_original,method='custom',custom_method=reduction_method)
+        complexity_test.feature_embeddings = complexity_test.embeddings.dim_reduction(test_embeddings_original,method='custom',custom_method=reduction_method)
 
 
-        measure_test = complexity_test.csg_measure(emb_type="current",n_samples=1500, reduction_type='custom', reduction_method=reduction_method,auls=False)
+        measure_test = complexity_test.overlap.csg_measure(emb_type="current",n_samples=1500, reduction_type='custom', reduction_method=reduction_method,auls=False)
         #measure_test = complexity_test.m_sep_measure(emb_type="current", reduction_type='custom', reduction_method=reduction_method)
         #measure_test = complexity_test.tabular_measure(emb_type="current", measure="kDN" , reduction_type='custom', reduction_method=reduction_method)
 
@@ -111,14 +107,14 @@ if __name__ == "__main__":
         X_test = complexity_test.feature_embeddings
         y_test = complexity_test.images['class'].values
 
-        accuracy_xgb = nn_classifier(X_train,y_train,X_test,y_test)
-        print("NN Accuracy:", accuracy_xgb)
+        accuracy_nn = nn_classifier(X_train,y_train,X_test,y_test)
+        print("NN Accuracy:", accuracy_nn)
 
 
-        perf_array.append(accuracy_xgb)
-        comp_array.append(measure)
+        perf_array.append(accuracy_nn)
+
         comp_test_array.append(measure_test)
 
     
-    df = pd.DataFrame({"Dim":dim_array, "Performace":perf_array, "Complexity Train":comp_array, "Complexity Test":comp_test_array})
+    df = pd.DataFrame({"Dim":dim_array, "Performace":perf_array, "Complexity Test":comp_test_array})
     print(df)
