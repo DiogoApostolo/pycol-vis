@@ -85,7 +85,7 @@ EMBEDDING_MODELS = {
 
 def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=4,num_workers=0,device=None,output_path="embeddings.dat"):
     
-
+    
     if hasattr(model, 'to'):
         model = model.to("cpu")
         if hasattr(model, 'encoder') and model.encoder is not None:
@@ -98,7 +98,7 @@ def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=4,num_wo
             device = torch.device("mps")
         else:
             device = torch.device("cpu")
-        print(f"Using device: {device}")
+    print(f"Using device: {device}")
 
     model = model.to(device)
     if hasattr(model, 'encoder') and model.encoder is not None:
@@ -173,7 +173,7 @@ def generate_embeddings(image_paths,emb_type="efficient_net",batch_size=32,num_w
     return embeddings
 
 
-def embed_images(image_paths, feature_embeddings=None, model=None, emb_type='efficient_net', layer_index=-1, num_workers=0):
+def embed_images(image_paths, feature_embeddings=None, model=None, emb_type='efficient_net', layer_index=-1, num_workers=0, device=None):
 
 
     if(emb_type not in EMBEDDING_MODELS and emb_type != "current" and emb_type != "raw" and emb_type != "CNN"):
@@ -216,7 +216,7 @@ def embed_images(image_paths, feature_embeddings=None, model=None, emb_type='eff
 
     elif(emb_type in EMBEDDING_MODELS):
         print(f"Extracting {emb_type} embeddings...")
-        embeddings = generate_embeddings(image_paths=image_paths, emb_type=emb_type, num_workers=num_workers)
+        embeddings = generate_embeddings(image_paths=image_paths, emb_type=emb_type, num_workers=num_workers, device=device)
     else:
         raise ValueError(f"Unknown embedding type: {emb_type}")
 

@@ -6,7 +6,7 @@ class EmbeddingAPI:
     def __init__(self, parent):
         self.parent = parent
 
-    def embed_images(self, emb_type, layer_index=-1, num_workers=0):
+    def embed_images(self, emb_type, layer_index=-1, num_workers=0, device=None):
         '''
         Embed the images using the specified embedding type and layer index. The resulting embeddings are stored in the self.feature_embeddings attribute for later use in overlap measure calculations.
         
@@ -19,6 +19,7 @@ class EmbeddingAPI:
           'current' to use previously calculated embeddings stored in self.feature_embeddings
         - layer_index (int): The index of the layer from which to extract embeddings if emb_type is 'CNN'. If -1 is specified, the final layer embeddings will be used.
         - num_workers (int): The number of worker processes to use for parallel embedding generation. Default is 0, which means that the embedding generation will be performed in the main process.
+        - device (str): The device to use for embedding generation (e.g., 'cpu' or 'cuda'). If None, the device will be automatically selected based on availability.
         '''
         
         #check if emb_type is valid
@@ -35,7 +36,7 @@ class EmbeddingAPI:
                 return None
             return self.parent.feature_embeddings
         else:
-            self.parent.feature_embeddings = embed_images(image_paths=self.parent.images['image_path'], emb_type=emb_type, model=self.parent.model, layer_index=layer_index, num_workers=num_workers)
+            self.parent.feature_embeddings = embed_images(image_paths=self.parent.images['image_path'], emb_type=emb_type, model=self.parent.model, layer_index=layer_index, num_workers=num_workers, device=device)
         return self.parent.feature_embeddings  
     
     def cnn_setup(self,depth=2,epochs=10,is_train=True):

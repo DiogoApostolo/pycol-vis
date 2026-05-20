@@ -10,8 +10,16 @@ from xgboost import XGBClassifier
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
-
+import platform
 import torch
+import os
+
+
+if platform.system() == "Darwin":
+        os.environ["OMP_NUM_THREADS"] = "1"
+        os.environ["MKL_NUM_THREADS"] = "1"
+        os.environ["XGBOOST_THREAD_LEVEL"] = "0"
+
 
 if torch.cuda.is_available():
     DEVICE = torch.device("cuda")
@@ -59,7 +67,7 @@ def nn_classifier(X_train, y_train, X_test, y_test):
 
     return accuracy
 
-\
+
 def knn_classifier(X_train, y_train, X_test, y_test, n_neighbors=5):
 
     clf = KNeighborsClassifier(n_neighbors=n_neighbors)
@@ -73,12 +81,15 @@ def knn_classifier(X_train, y_train, X_test, y_test, n_neighbors=5):
 def xgb_classifier(X_train, y_train, X_test, y_test):
     
     
+    
+    
 
     le = LabelEncoder()
     y_train = le.fit_transform(y_train)
     y_test = le.transform(y_test)
 
     clf = XGBClassifier(eval_metric='mlogloss')
+    
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
@@ -86,7 +97,6 @@ def xgb_classifier(X_train, y_train, X_test, y_test):
     return accuracy
 
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 
@@ -109,14 +119,14 @@ class PathDataset(Dataset):
         return image, label
 
 
-
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
         super().__init__()
 
         self.conv1 = nn.Conv2d(in_channels, out_channels, 3, stride, 1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU(inplace=True)
+       
+        self.relu = nn.ReLU(inplace=False)
 
         self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
@@ -124,14 +134,26 @@ class ResidualBlock(nn.Module):
         self.shortcut = nn.Sequential()
 
         if stride != 1 or in_channels != out_channels:
-            self.shortcut = nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, stride, bias=False),nn.BatchNorm2d(out_channels))
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 1, stride, bias=False),
+                nn.BatchNorm2d(out_channels)
+            )
 
     def forward(self, x):
         residual = self.shortcut(x)
-        x = self.relu(self.bn1(self.conv1(x)))
-        x = self.bn2(self.conv2(x))
-        x += residual
-        return self.relu(x)
+        
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)   
+        
+        out = self.conv2(out)
+        out = self.bn2(out)
+        
+        out = out + residual
+        out = self.relu(out)   
+        
+        return out
+
 
 class CNNClassifier(nn.Module):
     def __init__(self, num_classes):
@@ -140,7 +162,7 @@ class CNNClassifier(nn.Module):
         self.init_conv = nn.Sequential(
             nn.Conv2d(3, 32, 3, 1, 1, bias=False),
             nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=False) 
         )
 
         self.layer1 = ResidualBlock(32, 64, 2)
@@ -151,7 +173,7 @@ class CNNClassifier(nn.Module):
 
         self.fc = nn.Sequential(
             nn.Linear(256, 128),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace=False), 
             nn.Dropout(0.4),
             nn.Linear(128, num_classes)
         )
@@ -163,7 +185,8 @@ class CNNClassifier(nn.Module):
         x = self.layer3(x)
         x = self.avg_pool(x)
         x = torch.flatten(x, 1)
-        return self.fc(x)
+        x = self.fc(x)
+        return x
 
 
 def train_cnn(train_loader, num_classes, epochs=25, lr=0.001):
@@ -181,9 +204,13 @@ def train_cnn(train_loader, num_classes, epochs=25, lr=0.001):
         total, correct, loss_sum = 0, 0, 0.0
 
         for images, labels in train_loader:
-
-            images = images.to(DEVICE, non_blocking=True)
-            labels = labels.to(DEVICE, non_blocking=True)
+           
+            if DEVICE.type == "mps":
+                images = images.to(DEVICE).contiguous()
+                labels = labels.to(DEVICE)
+            else:
+                images = images.to(DEVICE, non_blocking=True)
+                labels = labels.to(DEVICE, non_blocking=True)
 
             outputs = model(images)
             loss = criterion(outputs, labels)
@@ -206,9 +233,14 @@ def train_cnn(train_loader, num_classes, epochs=25, lr=0.001):
 
     return model
 
+
 def classify_images(model, image_tensor):
     model.eval()
-    image_tensor = image_tensor.to(DEVICE)
+    if DEVICE.type == "mps":
+        image_tensor = image_tensor.to(DEVICE).contiguous()
+    else:
+        image_tensor = image_tensor.to(DEVICE)
+        
     with torch.no_grad():
         outputs = model(image_tensor)
         _, predicted = torch.max(outputs, 1)
@@ -221,13 +253,14 @@ def predict_on_test_df(model, test_df, transform, batch_size=32):
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
     model.eval()
-
     preds = []
 
     with torch.no_grad():
         for images, _ in loader:
-
-            images = images.to(DEVICE, non_blocking=True)
+            if DEVICE.type == "mps":
+                images = images.to(DEVICE).contiguous()
+            else:
+                images = images.to(DEVICE, non_blocking=True)
 
             outputs = model(images)
             _, predicted = torch.max(outputs, 1)
@@ -258,9 +291,11 @@ def cnn_classifier(df, test_df):
     ])
 
     NUM_CLASSES = len(class_mapping)
-
     train_dataset = PathDataset(df, transform=transform)
 
+    if DEVICE.type == "mps":
+        torch.use_deterministic_algorithms(False) 
+    
     train_loader = DataLoader(
         train_dataset,
         batch_size=32,
@@ -268,10 +303,8 @@ def cnn_classifier(df, test_df):
         generator=torch.Generator().manual_seed(0)
     )
 
-    model = train_cnn(train_loader, NUM_CLASSES, epochs=30)
-
+    model = train_cnn(train_loader, NUM_CLASSES, epochs=40)
     y_pred = predict_on_test_df(model, test_df, transform)
-
     y_true = test_df['class'].tolist()
 
     return accuracy_score(y_true, y_pred)

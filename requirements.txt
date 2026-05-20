@@ -2,8 +2,9 @@
 tensorflow==2.16.1
 
 # PyTorch and torchvision
-torch==2.5.1
-torchvision==0.20.1
+torch>=2.5.1
+torchvision>=0.20.1
+tqdm>=4.65.0
 
 # Scientific Python stack 
 numpy>=1.22.0
@@ -20,3 +21,5 @@ pycol-complexity>=0.1.0
 
 # Gradient boosting classifier
 xgboost>=1.7.0
+
+PyQt5

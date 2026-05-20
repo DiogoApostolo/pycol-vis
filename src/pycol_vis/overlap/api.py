@@ -7,8 +7,8 @@ class OverlapAPI:
         self.parent = parent
         self.embeddings_api = parent.embeddings
 
-    def handle_embs_reduction(self, emb_type='efficient_net', layer_index=-1, reduction_type='pca', reduction_method=None, n_components=10):
-        embs = self.embeddings_api.embed_images(emb_type=emb_type, layer_index=layer_index)
+    def handle_embs_reduction(self, emb_type='efficient_net', layer_index=-1, reduction_type='pca', reduction_method=None, n_components=10, num_workers=0, device=None):
+        embs = self.embeddings_api.embed_images(emb_type=emb_type, layer_index=layer_index, num_workers=num_workers, device=device)
 
         if(embs is None):
             return None
@@ -18,7 +18,7 @@ class OverlapAPI:
 
         return embs
 
-    def m_var_measure(self, emb_type='efficient_net', layer_index=-1, reduction_type='pca', reduction_method=None, n_components=10):
+    def m_var_measure(self, emb_type='efficient_net', layer_index=-1, reduction_type='pca', reduction_method=None, n_components=10, num_workers=0, device=None):
         '''
         Compute the M_var measure of class variability in the embedding space.
 
@@ -31,12 +31,14 @@ class OverlapAPI:
         - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating M_var. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
         - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
         - n_components (int): The number of components to use for dimensionality reduction if reduction_type is specified. Default is 10.
+        - num_workers (int): The number of worker processes to use for parallel computation.
+        - device (str): The device to use for computation (e.g., 'cpu' or 'cuda').
 
         Returns:
         - float: The calculated M_var value representing class separability in the embedding space.
         '''
 
-        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
+        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components, num_workers=num_workers, device=device)
 
         if(embs is None):
             return ValueError("No embeddings found for the specified embedding type and layer index.")
@@ -51,7 +53,7 @@ class OverlapAPI:
         return measure
 
 
-    def m_sep_measure(self, emb_type='efficient_net', layer_index=-1, reduction_type='pca', reduction_method=None, n_components=10):
+    def m_sep_measure(self, emb_type='efficient_net', layer_index=-1, reduction_type='pca', reduction_method=None, n_components=10, num_workers=0, device=None):
         '''
         Compute the M_sep measure of class separability in the embedding space.
 
@@ -63,12 +65,13 @@ class OverlapAPI:
         - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating M_sep. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
         - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
         - n_components (int): The number of components to use for dimensionality reduction if reduction_type is specified. Default is 10.
-
+        - num_workers (int): The number of worker processes to use for parallel computation.
+        - device (str): The device to use for computation (e.g., 'cpu' or 'cuda').
         Returns:
         - float: The calculated M_sep value representing class separability in the embedding space.
         '''
 
-        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
+        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components, num_workers=num_workers, device=device)
 
         if(embs is None):
             return ValueError("No embeddings found for the specified embedding type and layer index.")
@@ -80,7 +83,7 @@ class OverlapAPI:
 
         return measure
 
-    def tabular_measure(self, layer_index=-1, reduction_type='pca', reduction_method=None, emb_type='efficient_net', measure='kdn', n_components=10):
+    def tabular_measure(self, layer_index=-1, reduction_type='pca', reduction_method=None, emb_type='efficient_net', measure='kdn', n_components=10, num_workers=0, device=None):
         '''
         Calculate overlap measures using the pycol complexity libray.
 
@@ -93,9 +96,11 @@ class OverlapAPI:
         - emb_type (str): The type of embeddings to use for the calculation. 
         - measure (str): The specific overlap measure to calculate. Options are 'n2', 'kdn', or 'lsc'. Each measure captures different aspects of class overlap and complexity in the feature space.
         - n_components (int): The number of components to use for dimensionality reduction if reduction_type is specified. Default is 2.
+        - num_workers (int): The number of worker processes to use for parallel computation.
+        - device (str): The device to use for computation (e.g., 'cpu' or 'cuda').
         '''
 
-        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
+        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components, num_workers=num_workers, device=device)
 
         if(embs is None):
             return ValueError("No embeddings found for the specified embedding type and layer index.")
@@ -107,7 +112,7 @@ class OverlapAPI:
 
         return measure
 
-    def auls_measure(self, layer_index=-1, emb_type='efficient_net', n_samples=50, reduction_type='pca', reduction_method=None, n_components=10):
+    def auls_measure(self, layer_index=-1, emb_type='efficient_net', n_samples=50, reduction_type='pca', reduction_method=None, n_components=10, num_workers=0, device=None):
         '''
         Calculate the AULS complexity measure based on the spectrum of the graph. AULS is calculated using the eigenvalues of the Laplacian matrix derived from the similarity graph of the embeddings.
         A lower AULS value indicates better class separability in the embedding space, while a higher value indicates more overlap between classes.
@@ -119,12 +124,14 @@ class OverlapAPI:
         - reduction_type (str): The type of dimensionality reduction to apply to the embeddings before calculating the CSG measure. Options are 'pca', 'tsne', or 'custom'. If None, no dimensionality reduction is applied.
         - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
         - n_components (int): The number of components to keep if dimensionality reduction is applied. Only used if reduction_type is not None.
+        - num_workers (int): The number of worker processes to use for parallel computation.
+        - device (str): The device to use for computation (e.g., 'cpu' or 'cuda').
 
         Returns:
         - float: The calculated AULS complexity score for the dataset based on the specified embedding
         '''
 
-        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
+        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components, num_workers=num_workers, device=device)
 
         if(embs is None):
             return ValueError("No embeddings found for the specified embedding type and layer index.")
@@ -137,7 +144,7 @@ class OverlapAPI:
         return measure
 
 
-    def csg_measure(self, layer_index=-1, emb_type='efficient_net', n_samples=50, reduction_type='pca', reduction_method=None, n_components=10, auls=False):
+    def csg_measure(self, layer_index=-1, emb_type='efficient_net', n_samples=50, reduction_type='pca', reduction_method=None, n_components=10, auls=False, num_workers=0, device=None):
         '''
          Calculate the CSG complexity measure based on the spectrum of the graph. CSG is calculated using the eigenvalues of the Laplacian matrix derived from the similarity graph of the embeddings.
         A lower CSG value indicates better class separability in the embedding space, while a higher value indicates more overlap between classes.
@@ -150,13 +157,15 @@ class OverlapAPI:
         - reduction_method (callable): A custom dimensionality reduction method to apply to the embeddings if reduction_type is 'custom'. 
         - n_components (int): The number of components to keep if dimensionality reduction is applied. Only used if reduction_type is not None.
         - auls (bool): Whether to calculate the cmsAULS complexity measure instead of CSG. 
+        - num_workers (int): The number of worker processes to use for parallel computation.
+        - device (str): The device to use for computation (e.g., 'cpu' or 'cuda').
 
         Returns:
         - float: The calculated CSG or csmAULS complexity score for the dataset based on the specified embedding
         '''
 
 
-        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components)
+        embs = self.handle_embs_reduction(emb_type=emb_type, layer_index=layer_index, reduction_type=reduction_type, reduction_method=reduction_method, n_components=n_components, num_workers=num_workers, device=device)
 
         if(embs is None):
             return ValueError("No embeddings found for the specified embedding type and layer index.")
