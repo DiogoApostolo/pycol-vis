@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from ..datasets.dataset_class import ImageDataset
 from ..utils.utils import load_image
 from tqdm.auto import tqdm
-
+from skimage.feature import graycomatrix, graycoprops
 
 def efficientnet_preprocess(img):
     '''
@@ -81,6 +81,8 @@ EMBEDDING_MODELS = {
         mobilenet_preprocess
     )
 }
+
+embdedding_types = list(EMBEDDING_MODELS.keys()) + ["current", "raw", "CNN", "histogram_texture"]
 
 
 def extract_torch_embeddings(image_paths,model,preprocess_fn,batch_size=4,num_workers=0,device=None,output_path="embeddings.dat"):
@@ -172,11 +174,61 @@ def generate_embeddings(image_paths,emb_type="efficient_net",batch_size=32,num_w
 
     return embeddings
 
+def extract_histogram_texture_features(image_paths):
+    features = []
+
+    for path in image_paths:
+        img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+
+        if (img is None):
+            continue
+
+        pixels = img.flatten().astype(np.float64)
+
+        mean = np.mean(pixels)
+        std = np.std(pixels)
+
+        centered = pixels - mean
+
+        skewness = np.mean(centered ** 3) / (std ** 3 + 1e-10)
+        kurtosis = np.mean(centered ** 4) / (std ** 4 + 1e-10)
+
+        hist = np.bincount(img.ravel(), minlength=256)
+        p = hist / hist.sum()
+
+        entropy = -np.sum(p[p > 0] * np.log2(p[p > 0]))
+
+        edges = cv2.Canny(img, 100, 200)
+        edge_density = np.mean(edges > 0)
+
+        glcm = graycomatrix(img, distances=[1], angles=[0], levels=256,
+                            symmetric=True, normed=True)
+
+        contrast = graycoprops(glcm, "contrast")[0, 0]
+        homogeneity = graycoprops(glcm, "homogeneity")[0, 0]
+        energy = graycoprops(glcm, "energy")[0, 0]
+        correlation = graycoprops(glcm, "correlation")[0, 0]
+
+        features.append([
+            mean,
+            std,
+            skewness,
+            kurtosis,
+            entropy,
+            edge_density,
+            contrast,
+            homogeneity,
+            energy,
+            correlation
+        ])
+
+    return np.array(features)
+
 
 def embed_images(image_paths, feature_embeddings=None, model=None, emb_type='efficient_net', layer_index=-1, num_workers=0, device=None):
 
 
-    if(emb_type not in EMBEDDING_MODELS and emb_type != "current" and emb_type != "raw" and emb_type != "CNN"):
+    if(emb_type not in embdedding_types):
         raise ValueError(f"Unknown embedding type: {emb_type}")
     #validate inputs
     if(layer_index < -1):
@@ -213,6 +265,10 @@ def embed_images(image_paths, feature_embeddings=None, model=None, emb_type='eff
         
         print("Extracting CNN embeddings...")
         embeddings = model.get_feature_embeddings_all(image_paths=image_paths, layer_index=layer_index)
+    elif(emb_type == "histogram_texture"):
+        print("Extracting histogram and texture features...")
+        embeddings = extract_histogram_texture_features(image_paths=image_paths)
+
 
     elif(emb_type in EMBEDDING_MODELS):
         print(f"Extracting {emb_type} embeddings...")

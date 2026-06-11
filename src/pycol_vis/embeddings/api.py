@@ -17,14 +17,13 @@ class EmbeddingAPI:
           'efficient_net' for embeddings generated using the EfficientNet architecture
           'mobile_net' for embeddings generated using the MobileNet architecture
           'current' to use previously calculated embeddings stored in self.feature_embeddings
+          'histogram_texture' to extract histogram and texture features from the images
         - layer_index (int): The index of the layer from which to extract embeddings if emb_type is 'CNN'. If -1 is specified, the final layer embeddings will be used.
         - num_workers (int): The number of worker processes to use for parallel embedding generation. Default is 0, which means that the embedding generation will be performed in the main process.
         - device (str): The device to use for embedding generation (e.g., 'cpu' or 'cuda'). If None, the device will be automatically selected based on availability.
         '''
         
-        #check if emb_type is valid
-        if(emb_type not in ["raw", "CNN", "efficient_net", "mobile_net", "current"]):
-            raise ValueError("Invalid embedding type. Supported types are: 'raw', 'CNN', 'efficient_net', 'mobile_net', 'current'.")
+        
 
         if(emb_type != "CNN"):
             self.parent.model = None
