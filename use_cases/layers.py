@@ -1,0 +1,66 @@
+from pycol_vis import ImageComplexity
+from pycol_vis.classifiers import svm_classifier, nn_classifier, knn_classifier, xgb_classifier
+
+import matplotlib.pyplot as plt
+
+import os
+
+
+'''
+Use case example of how to use the CSG measure to evaluate the complexity of the feature embeddings at different layers of a CNN.
+
+Download the dataset at https://github.com/DiogoApostolo/pycol-vis/blob/main/Fruit_dataset.zip
+
+OR
+
+Use the Fruit_dataset.zip in this repo
+
+'''
+
+if __name__ == "__main__":
+
+
+    dataset = "Fruit_dataset"
+    emb = "CNN"
+    layer = -1
+    depth = 4
+    epochs = 10
+
+
+
+        
+    folder = "./" + dataset +  "/train/"
+
+    if not os.path.exists(folder):
+        raise ValueError("Folder " + folder + " does not exist. Please download the dataset from https://github.com/DiogoApostolo/pycol-vis/blob/main/Fruit_dataset.zip or use the Fruit_dataset.zip in this repo and place it in the correct location.")
+
+
+    complexity = ImageComplexity(folder,keep_classes = ['apple','banana'],number_per_class=200)
+    complexity.embeddings.cnn_setup(depth=depth,epochs=epochs)
+
+    csg_measures = []
+    for layer in range(0,depth):
+        csg = complexity.overlap.csg_measure(emb_type=emb, reduction_type="pca", layer_index=layer)
+
+        if(layer == -1):
+            layer_name = "fin"
+        else:
+            layer_name = str(layer)
+
+        print("CSG Measure for layer", layer_name, ":", csg)
+
+        #save csg measure to an array and plot it after the loop
+        csg_measures.append(csg)
+
+
+    layer_names = ["Layer " + str(i+1) for i in range(0,depth)]
+
+
+
+    plt.plot(range(0,depth), csg_measures, marker='o')
+    plt.xlabel("Layer")
+    plt.ylabel("CSG Measure")
+    plt.title("CSG Measure per Layer")
+    plt.xticks(range(0,depth), layer_names)
+    plt.show()
+
