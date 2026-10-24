@@ -2,7 +2,6 @@ from pycol_vis import ImageComplexity
 from pycol_vis.classifiers import svm_classifier
 import random
 import numpy as np
-import tensorflow as tf
 import os
 
 """
@@ -21,7 +20,6 @@ if __name__ == "__main__":
     SEED = 0
     random.seed(SEED)
     np.random.seed(SEED)
-    tf.random.set_seed(SEED)
 
     dataset = "shapes_dataset"
     folder = "./" + dataset + "/train/"

@@ -1,7 +1,6 @@
 from pycol_vis import ImageComplexity
 
 import os
-import time
 if __name__ == "__main__":
 
     dataset = "CovidDataset"
@@ -14,12 +13,9 @@ if __name__ == "__main__":
 
     complexity = ImageComplexity(folder,keep_classes=classes,number_per_class=50)
     
-    #time the execution of the overlap measures calculation
-    start_time = time.time()
+
     complexity.all_intrinsic_measures()
 
-    end_time = time.time()
-    print(f"Time taken: {end_time - start_time} seconds")
     print("Intrinsic measures calculated:")
 
     print(complexity.images)

@@ -85,7 +85,7 @@ mnist_dataset/
 fashion_mnist_dataset/
 cifar10_dataset/
 embeddings.dat
-datasets/
+/datasets/
 
 # ================================
 # Local testing / debug scripts

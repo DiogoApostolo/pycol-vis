@@ -242,27 +242,5 @@ class OverlapAPI:
         self.parent.overlap_measures_dic['entropic_graphs_' + emb_type + '_layer' + layer_index_str] = measure
 
         return measure
-    
-    def fisher_discriminative_map(self):
-        measure = fisher_discriminative_map(self.parent.images['image_path'].values,self.parent.images['class'].values)
-        return measure
-    
-    def patch_discriminative_maps(self, image_size=(64, 64), patch_size=8, patch_descriptor_method="all",measure_method = "fisher",aggregation=None, measure_params=None):
-        maps = patch_discriminative_maps(self.parent.images['image_path'].values,self.parent.images['class'].values, image_size=image_size, patch_size=patch_size, descriptor_method = patch_descriptor_method, measure_method=measure_method, aggregation=aggregation, measure_params=measure_params)
-        return maps
-    
-    def global_discriminative_descriptors(
-        self,
-        image_size=(256, 256),
-        descriptor_method="all",
-        measure_method = "fisher"
-    ):
-        
 
-        measure = global_discriminative_descriptors(self.parent.images['image_path'].values,
-                                                   self.parent.images['class'].values,
-                                                   image_size=image_size,
-                                                   descriptor_method=descriptor_method,
-                                                   measure_method=measure_method
-                                                   )
-        return measure
+    
