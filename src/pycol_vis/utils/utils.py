@@ -33,10 +33,7 @@ def get_average_image_shape(images):
         print(images.shape)
 
         for name in images['image_path']:
-<<<<<<< HEAD
             
-=======
->>>>>>> a5143b3e9bf20eb88f1a6a95a9006bf4448c8d46
             image = load_image(name, convert_rgb=False)
             h, w = image.shape[:2]
             total_height += h
@@ -90,14 +87,11 @@ def load_images(folder,keep_classes='all',number_per_class=-1):
         if(os.path.isdir(class_path)):
             count = 0
             for image_name in os.listdir(class_path):
-<<<<<<< HEAD
 
                 #check if the file is an image
                 if not image_name.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.gif')):
                     continue
 
-=======
->>>>>>> a5143b3e9bf20eb88f1a6a95a9006bf4448c8d46
                 #if the number of images for this class is reached, stop loading more images for this class
                 if(number_per_class != -1 and count >= number_per_class):
                     break

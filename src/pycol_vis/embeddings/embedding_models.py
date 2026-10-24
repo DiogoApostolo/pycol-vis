@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import numpy as np
 from torch.utils.data import DataLoader, TensorDataset
 
-from ..datasets import ImageDataset
+from ..datasets.dataset_class import ImageDataset
 
 class ConvAutoencoder(nn.Module):
     def __init__(self, input_shape=(28, 28, 1), latent_dim=32):
